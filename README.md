@@ -18,10 +18,10 @@ pip install -r requirements.txt
 
 Source: [UCI Heart Disease dataset](https://archive.ics.uci.edu/dataset/45/heart+disease)
 
-### What the UCI page says about this data
+### Information given on the UCI page
 
-The dataset has patient records from four hospitals: Cleveland, Hungary,
-Switzerland and VA Long Beach. The dataset page gives this information:
+The dataset contains patient records from four hospitals: Cleveland, Hungary,
+Switzerland and VA Long Beach. The following is stated on the dataset page:
 
 > This database contains 76 attributes, but all published experiments refer to
 > using a subset of 14 of them. In particular, the Cleveland database is the
@@ -35,17 +35,21 @@ Switzerland and VA Long Beach. The dataset page gives this information:
 > The names and social security numbers of the patients were recently removed
 > from the database, replaced with dummy values.
 
-### How it is used in this project
+### Use of the data in this project
 
-Based on the above, and on our own check of the files:
+The statements above were verified against the files (see
+`notebooks/01_data_acquisition_and_eda.ipynb`). The following decisions were
+taken:
 
-- Only the "processed" files with 14 columns are used. These files have no
-  patient names or ID numbers.
+- Only the 14-column files provided by UCI (named `processed.*.data`) are
+  used. These files contain no patient names or ID numbers. The word
+  "processed" in the file names refers to the reduction from 76 to 14 columns
+  done by the data donors. In this project these files are the raw data.
 - The Cleveland file (303 patients) is used for modelling.
 - The target is made binary: 0 = no disease, 1 = disease (values 1 to 4).
-- The files of the other three hospitals are kept only for a comparison in
-  the EDA. They are not used for modelling because most of their values for
-  `ca`, `thal` and `slope` are missing.
+- The files of the other three hospitals are retained only for a comparison
+  in the EDA. They are not used for modelling because most of their values
+  for `ca`, `thal` and `slope` are missing.
 
 | Hospital | Patients | Rows with no missing value |
 |---|---|---|
@@ -56,10 +60,29 @@ Based on the above, and on our own check of the files:
 
 ### Download
 
-The raw files are already kept in `data/raw/`. To download them again:
+The raw files are kept in `data/raw/`. They can be downloaded again with:
 
 ```bash
 python scripts/download_data.py
 ```
 
-More steps will be added here as the project grows.
+### Cleaning
+
+The cleaned file `data/processed/heart_clean.csv` is produced from the raw
+Cleveland file with:
+
+```bash
+python src/data_prep.py
+```
+
+The six missing values (4 in `ca`, 2 in `thal`) are intentionally left in the
+cleaned file. They are filled inside the model pipeline, so that the fill
+value is learnt from the training data only.
+
+## Data acquisition and exploratory data analysis
+
+The analysis is in `notebooks/01_data_acquisition_and_eda.ipynb`. The download
+and cleaning scripts are called from within the notebook, so it can be run on
+its own.
+
+Further sections will be added as the project progresses.

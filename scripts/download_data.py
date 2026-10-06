@@ -21,9 +21,12 @@ BASE_URL = (
     "https://archive.ics.uci.edu/ml/machine-learning-databases/heart-disease/"
 )
 
-# The dataset has records from four hospitals. Only the "processed" files are
-# downloaded. They have the 14 columns used in all published work and carry
-# no patient names or ID numbers.
+# The dataset has records from four hospitals. UCI gives a 14-column version
+# of each hospital's data in files named "processed.*.data". The name refers
+# to the cut from 76 to 14 columns done by the data donors. Nothing is
+# processed in this project at this stage, so these files are the raw data.
+# They have the 14 columns used in all published work and carry no patient
+# names or ID numbers.
 #
 # Cleveland is the file used for modelling, for two reasons:
 #   1. The UCI page says "the Cleveland database is the only one that has
@@ -61,16 +64,19 @@ COLUMNS = [
 RAW_DIR = Path("data/raw")
 
 
-def raw_path(hospital: str) -> Path:
+def raw_path(hospital: str, raw_dir: Path = RAW_DIR) -> Path:
     """Return the CSV path for one hospital, e.g. heart_cleveland_raw.csv."""
-    return RAW_DIR / f"heart_{hospital}_raw.csv"
+    return Path(raw_dir) / f"heart_{hospital}_raw.csv"
 
 
-def download(hospital: str) -> pd.DataFrame:
+def download(hospital: str, raw_dir: Path = RAW_DIR) -> pd.DataFrame:
     """Read one hospital file from UCI, add column names and save it as a CSV.
 
     The file is saved without any cleaning, so that the cleaning step can
     always be repeated from the original data.
+
+    raw_dir is the folder to save in. It is a parameter so that the function
+    can also be called from the notebook, which runs from another folder.
     """
     file_name, expected_rows = HOSPITALS[hospital]
 
@@ -86,7 +92,7 @@ def download(hospital: str) -> pd.DataFrame:
             f"{file_name}: expected shape {expected_shape}, got {df.shape}"
         )
 
-    out_path = raw_path(hospital)
+    out_path = raw_path(hospital, raw_dir)
     out_path.parent.mkdir(parents=True, exist_ok=True)
     df.to_csv(out_path, index=False)
     return df

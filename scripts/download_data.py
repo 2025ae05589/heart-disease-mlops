@@ -23,8 +23,9 @@ BASE_URL = (
 
 # The dataset has records from four hospitals. UCI gives a 14-column version
 # of each hospital's data in files named "processed.*.data". The name refers
-# to the cut from 76 to 14 columns done by the data donors. Nothing is
-# processed in this project at this stage, so these files are the raw data.
+# to the cut from 76 to 14 columns, done before the files were published.
+# Nothing is processed in this project at this stage, so these files are the
+# raw data.
 # They have the 14 columns used in all published work and carry no patient
 # names or ID numbers.
 #
@@ -43,22 +44,23 @@ HOSPITALS = {
 }
 
 # The source files have no header row, so the names are given here.
-# They follow the order in the UCI documentation (heart-disease.names).
+# The order and the meanings are as given in the UCI documentation
+# (heart-disease.names).
 COLUMNS = [
     "age",       # age in years
     "sex",       # 1 = male, 0 = female
     "cp",        # chest pain type (1 to 4)
     "trestbps",  # resting blood pressure in mm Hg
     "chol",      # serum cholesterol in mg/dl
-    "fbs",       # fasting blood sugar > 120 mg/dl (1 = yes, 0 = no)
-    "restecg",   # resting ECG result (0 to 2)
-    "thalach",   # maximum heart rate reached
-    "exang",     # chest pain during exercise (1 = yes, 0 = no)
-    "oldpeak",   # ST depression caused by exercise
-    "slope",     # slope of the ST segment at peak exercise (1 to 3)
-    "ca",        # number of major vessels seen in fluoroscopy (0 to 3)
-    "thal",      # thallium test result (3, 6 or 7)
-    "num",       # diagnosis: 0 = no disease, 1 to 4 = disease
+    "fbs",       # fasting blood sugar > 120 mg/dl (1 = true, 0 = false)
+    "restecg",   # resting electrocardiographic results (0 to 2)
+    "thalach",   # maximum heart rate achieved
+    "exang",     # exercise induced angina (1 = yes, 0 = no)
+    "oldpeak",   # ST depression induced by exercise relative to rest
+    "slope",     # slope of the peak exercise ST segment (1 to 3)
+    "ca",        # number of major vessels (0 to 3) colored by fluoroscopy
+    "thal",      # 3 = normal, 6 = fixed defect, 7 = reversible defect
+    "num",       # diagnosis: 0 = no presence, 1 to 4 = presence
 ]
 
 RAW_DIR = Path("data/raw")

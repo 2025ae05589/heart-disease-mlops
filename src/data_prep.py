@@ -24,8 +24,9 @@ CLEAN_PATH = Path("data/processed/heart_clean.csv")
 # for categorical).
 #
 # "ca" is a count (0 to 3), so by type it is numerical. It is kept in the
-# second list for now because it has only four values. How the model should
-# handle it is decided later in the EDA notebook.
+# second list because the disease share does not rise in equal steps with
+# the count (section 11 of the EDA notebook), so each count is encoded as
+# its own category.
 NUMERIC = ["age", "trestbps", "chol", "thalach", "oldpeak"]
 CATEGORICAL = ["sex", "cp", "fbs", "restecg", "exang", "slope", "ca", "thal"]
 TARGET = "target"

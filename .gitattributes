@@ -1,0 +1,3 @@
+# The original UCI files are stored exactly as downloaded. Without this,
+# Git changes their line endings on Windows.
+data/raw/*.data -text

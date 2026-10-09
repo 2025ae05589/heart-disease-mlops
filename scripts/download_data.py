@@ -1,51 +1,48 @@
-"""Download the UCI Heart Disease data and save it as raw CSV files.
+"""Download the UCI Heart Disease data.
 
 Dataset page: https://archive.ics.uci.edu/dataset/45/heart+disease
 
 Run from the project root:
     python scripts/download_data.py
 
-Output (one file per hospital):
-    data/raw/heart_cleveland_raw.csv     <- used for modelling
-    data/raw/heart_hungarian_raw.csv     <- used only in the EDA comparison
-    data/raw/heart_switzerland_raw.csv   <- used only in the EDA comparison
-    data/raw/heart_va_raw.csv            <- used only in the EDA comparison
+For each hospital, the original UCI file and a CSV with column names are
+saved in data/raw/.
 """
+import hashlib
+import io
+import urllib.request
 from pathlib import Path
 
 import pandas as pd
 
-# Direct folder of the data files on the UCI site. The dataset page above
-# gives the same files inside a zip.
+# folder of the data files on the UCI site
 BASE_URL = (
     "https://archive.ics.uci.edu/ml/machine-learning-databases/heart-disease/"
 )
 
-# The dataset has records from four hospitals. UCI gives a 14-column version
-# of each hospital's data in files named "processed.*.data". The name refers
-# to the cut from 76 to 14 columns, done before the files were published.
-# Nothing is processed in this project at this stage, so these files are the
-# raw data.
-# They have the 14 columns used in all published work and carry no patient
-# names or ID numbers.
-#
-# Cleveland is the file used for modelling, for two reasons:
-#   1. The UCI page says "the Cleveland database is the only one that has
-#      been used by ML researchers to date".
-#   2. It is almost complete (297 of 303 rows have no missing value). The
-#      other three files have at most 1 complete row each.
-#
-# The number against each file is the row count in the UCI documentation.
+# One file per hospital, with its row count from the UCI documentation and
+# the SHA-256 hash of the file. Only Cleveland is used for modelling.
 HOSPITALS = {
-    "cleveland": ("processed.cleveland.data", 303),
-    "hungarian": ("processed.hungarian.data", 294),
-    "switzerland": ("processed.switzerland.data", 123),
-    "va": ("processed.va.data", 200),
+    "cleveland": (
+        "processed.cleveland.data", 303,
+        "a74b7efa387bc9d108d7d0115d831fe9b414b29ae7124f331b622b4efa0427c8",
+    ),
+    "hungarian": (
+        "processed.hungarian.data", 294,
+        "d1ad108f785768cd3d7e82dc522e6f5a61eea93cccfb3a46ee8076f73fc3d796",
+    ),
+    "switzerland": (
+        "processed.switzerland.data", 123,
+        "834a405ccf5b66ab4056bb77794adc8df0b7125186454c0a1d002d33c6c3b314",
+    ),
+    "va": (
+        "processed.va.data", 200,
+        "e7c93d8d0d2acdadfa4c5e8de768e2191e7f618b952e29623f1f0d5949ff6b8f",
+    ),
 }
 
-# The source files have no header row, so the names are given here.
-# The order and the meanings are as given in the UCI documentation
-# (heart-disease.names).
+# The source files have no header row. The names and meanings are from the
+# UCI documentation (heart-disease.names).
 COLUMNS = [
     "age",       # age in years
     "sex",       # 1 = male, 0 = female
@@ -71,32 +68,42 @@ def raw_path(hospital: str, raw_dir: Path = RAW_DIR) -> Path:
     return Path(raw_dir) / f"heart_{hospital}_raw.csv"
 
 
+def source_path(hospital: str, raw_dir: Path = RAW_DIR) -> Path:
+    """Return the path of the original UCI file for one hospital."""
+    return Path(raw_dir) / HOSPITALS[hospital][0]
+
+
 def download(hospital: str, raw_dir: Path = RAW_DIR) -> pd.DataFrame:
-    """Read one hospital file from UCI, add column names and save it as a CSV.
+    """Download one hospital file and save it as it is, and as a CSV with
+    column names. No cleaning is done here."""
+    file_name, expected_rows, expected_hash = HOSPITALS[hospital]
 
-    The file is saved without any cleaning, so that the cleaning step can
-    always be repeated from the original data.
+    with urllib.request.urlopen(BASE_URL + file_name) as response:
+        content = response.read()
 
-    raw_dir is the folder to save in. It is a parameter so that the function
-    can also be called from the notebook, which runs from another folder.
-    """
-    file_name, expected_rows = HOSPITALS[hospital]
+    # stop if the file on the UCI site has changed
+    found_hash = hashlib.sha256(content).hexdigest()
+    if found_hash != expected_hash:
+        raise ValueError(
+            f"{file_name}: expected hash {expected_hash}, got {found_hash}"
+        )
 
-    # Missing values are written as "?" in the source files.
+    source = source_path(hospital, raw_dir)
+    source.parent.mkdir(parents=True, exist_ok=True)
+    source.write_bytes(content)
+
+    # missing values are written as "?" in the source files
     df = pd.read_csv(
-        BASE_URL + file_name, header=None, names=COLUMNS, na_values="?"
+        io.BytesIO(content), header=None, names=COLUMNS, na_values="?"
     )
 
-    # Stop early if UCI changes a file, instead of failing later in training.
     expected_shape = (expected_rows, len(COLUMNS))
     if df.shape != expected_shape:
         raise ValueError(
             f"{file_name}: expected shape {expected_shape}, got {df.shape}"
         )
 
-    out_path = raw_path(hospital, raw_dir)
-    out_path.parent.mkdir(parents=True, exist_ok=True)
-    df.to_csv(out_path, index=False)
+    df.to_csv(raw_path(hospital, raw_dir), index=False)
     return df
 
 

@@ -84,7 +84,7 @@ def log_trained_model(pipeline, X_train, y_train):
 
 
 def log_combination_run(model_name, pipeline, settings, row, is_best,
-                        X_train, y_train, folds):
+                        X_train, y_train, folds, tags=None):
     """Log one combination of settings as a child run."""
     parts = []
     for name, value in settings.items():
@@ -95,6 +95,7 @@ def log_combination_run(model_name, pipeline, settings, row, is_best,
         mlflow.set_tag("run_type", "combination")
         mlflow.set_tag("model_name", model_name)
         mlflow.set_tag("best_of_model", str(is_best))
+        mlflow.set_tags(tags or {})
 
         mlflow.log_param("model_type", model_name)
         mlflow.log_params(settings)
@@ -135,17 +136,18 @@ def log_model_summary(model_name, pipeline, metrics_table, best_index,
 
 
 def log_model_runs(model_name, pipeline, search, metrics_table,
-                   X_train, y_train, folds):
+                   X_train, y_train, folds, tags=None):
     """Log one model: a parent run and a child run for each combination.
 
     search is from run_grid_search() and metrics_table is from
-    build_metrics_table().
+    build_metrics_table(). tags are extra labels set on every run.
     """
     setup_mlflow()
     all_params = search.cv_results_["params"]
     best_index = search.best_index_
 
     with mlflow.start_run(run_name=model_name):
+        mlflow.set_tags(tags or {})
 
         for i, row in metrics_table.iterrows():
             settings = {}
@@ -155,7 +157,7 @@ def log_model_runs(model_name, pipeline, search, metrics_table,
             candidate = clone(pipeline).set_params(**all_params[i])
             log_combination_run(
                 model_name, candidate, settings, row, i == best_index,
-                X_train, y_train, folds,
+                X_train, y_train, folds, tags,
             )
 
         best_pipeline = clone(pipeline).set_params(**search.best_params_)

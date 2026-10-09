@@ -7,7 +7,7 @@ from sklearn.preprocessing import OneHotEncoder, StandardScaler
 from src.data_prep import CATEGORICAL, NUMERIC
 
 
-def build_preprocessor() -> ColumnTransformer:
+def build_preprocessor(numeric=NUMERIC, categorical=CATEGORICAL) -> ColumnTransformer:
     """Return the preprocessing steps (not yet fitted).
 
     Numerical features: median imputation, then standardisation.
@@ -27,16 +27,16 @@ def build_preprocessor() -> ColumnTransformer:
 
     return ColumnTransformer(
         [
-            ("numeric", numeric_steps, NUMERIC),
-            ("categorical", categorical_steps, CATEGORICAL),
+            ("numeric", numeric_steps, numeric),
+            ("categorical", categorical_steps, categorical),
         ],
         verbose_feature_names_out=False,
     )
 
 
-def make_pipeline(model) -> Pipeline:
+def make_pipeline(model, numeric=NUMERIC, categorical=CATEGORICAL) -> Pipeline:
     """Preprocessing followed by the model, as one pipeline."""
     return Pipeline([
-        ("preprocess", build_preprocessor()),
+        ("preprocess", build_preprocessor(numeric, categorical)),
         ("model", model),
     ])

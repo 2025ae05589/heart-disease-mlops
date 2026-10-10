@@ -25,8 +25,10 @@ ARTIFACT_DIR = ROOT / "mlruns"
 EXPERIMENT = "Heart Disease Prediction"
 
 # skops, the format MLflow saves in, refuses types it does not know.
-# This one is used by the preprocessing steps.
-TRUSTED_TYPES = ["numpy.dtype"]
+TRUSTED_TYPES = [
+    "numpy.dtype",              # preprocessing steps
+    "sklearn.tree._tree.Tree",  # Random Forest
+]
 
 # Listed here, otherwise MLflow takes about 14 seconds per model to find them.
 MODEL_REQUIREMENTS = []

@@ -83,7 +83,8 @@ def build_metrics_table(search) -> pd.DataFrame:
     for i, params in enumerate(results["params"]):
         row = {}
         for name, value in params.items():
-            row[name.replace("model__", "")] = value
+            # None is kept as text, otherwise the table shows it as NaN
+            row[name.replace("model__", "")] = "None" if value is None else value
         for metric in METRICS:
             row[f"{metric}_mean"] = results[f"mean_test_{metric}"][i]
             row[f"{metric}_std"] = results[f"std_test_{metric}"][i]

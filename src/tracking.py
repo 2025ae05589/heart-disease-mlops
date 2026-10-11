@@ -6,6 +6,7 @@ from importlib.metadata import version
 import matplotlib.pyplot as plt
 import mlflow
 import mlflow.sklearn
+import pandas as pd
 from sklearn.base import clone
 
 from src.data_prep import CLEAN_PATH, SOURCE_PATH
@@ -26,13 +27,15 @@ EXPERIMENT = "Heart Disease Prediction"
 
 # skops, the format MLflow saves in, refuses types it does not know.
 TRUSTED_TYPES = [
-    "numpy.dtype",              # preprocessing steps
-    "sklearn.tree._tree.Tree",  # Random Forest
+    "numpy.dtype",                    # preprocessing steps
+    "sklearn.tree._tree.Tree",        # Random Forest, Gradient Boosting
+    "xgboost.core.Booster",           # XGBoost
+    "xgboost.sklearn.XGBClassifier",  # XGBoost
 ]
 
 # Listed here, otherwise MLflow takes about 14 seconds per model to find them.
 MODEL_REQUIREMENTS = []
-for package in ["scikit-learn", "pandas", "numpy", "skops"]:
+for package in ["scikit-learn", "xgboost", "pandas", "numpy", "skops"]:
     MODEL_REQUIREMENTS.append(f"{package}=={version(package)}")
 
 # The warning is about the prediction column, which is never missing.
@@ -129,7 +132,8 @@ def log_model_summary(model_name, pipeline, metrics_table, best_index,
 
     for column in metrics_table.columns:
         if not column.endswith("_mean") and not column.endswith("_std"):
-            mlflow.log_param(f"best_{column}", best_row[column])
+            # read from the column, so that a whole number stays whole
+            mlflow.log_param(f"best_{column}", metrics_table.at[best_index, column])
 
     log_metrics(best_row)
     mlflow.log_text(metrics_table.to_csv(index=False), "cv_results.csv")
@@ -169,3 +173,39 @@ def log_model_runs(model_name, pipeline, search, metrics_table,
         )
 
     print(f"Logged to MLflow: {model_name}, {len(metrics_table)} combinations.")
+
+
+def load_model_results() -> pd.DataFrame:
+    """One row per model, read from the parent runs in MLflow: the best
+    setting, its cross-validation metrics and the run ID."""
+    setup_mlflow()
+    runs = mlflow.search_runs(
+        filter_string="tags.run_type = 'model'",
+        order_by=["attributes.start_time ASC"],
+        output_format="list",
+    )
+
+    rows = {}
+    for run in runs:
+        # runs of side experiments are not models to compare
+        if "experiment" in run.data.tags:
+            continue
+
+        settings = []
+        for name, value in run.data.params.items():
+            if name.startswith("best_"):
+                settings.append(f"{name.replace('best_', '')}={value}")
+
+        row = {
+            "model": run.data.tags["model_name"],
+            "best_setting": ", ".join(sorted(settings)),
+            "run_id": run.info.run_id,
+        }
+        for metric in METRICS:
+            row[f"{metric}_mean"] = run.data.metrics[f"cv_{metric}_mean"]
+            row[f"{metric}_std"] = run.data.metrics[f"cv_{metric}_std"]
+
+        # if a model was run more than once, its latest run replaces the earlier one
+        rows[row["model"]] = row
+
+    return pd.DataFrame(list(rows.values()))

@@ -4,7 +4,15 @@ from pathlib import Path
 
 import matplotlib.pyplot as plt
 import pandas as pd
-from sklearn.metrics import ConfusionMatrixDisplay, RocCurveDisplay
+from sklearn.metrics import (
+    ConfusionMatrixDisplay,
+    RocCurveDisplay,
+    accuracy_score,
+    f1_score,
+    precision_score,
+    recall_score,
+    roc_auc_score,
+)
 from sklearn.model_selection import (
     GridSearchCV,
     StratifiedKFold,
@@ -38,6 +46,9 @@ TUNING_METRIC = "roc_auc"
 
 # models within this much of the best mean ROC-AUC are treated as close
 ROC_AUC_GAP = 0.01
+
+# quality gate: lowest ROC-AUC on the test set accepted for the selected model
+ROC_AUC_GATE = 0.80
 
 
 def split_data():
@@ -117,6 +128,23 @@ def select_best_model(results: pd.DataFrame) -> pd.Series:
     best_roc_auc = results["roc_auc_mean"].max()
     close = results[results["roc_auc_mean"] >= best_roc_auc - ROC_AUC_GAP]
     return close.loc[close["recall_mean"].idxmax()]
+
+
+def compute_metrics(y_true, probability) -> dict:
+    """The five metrics from the true labels and the predicted probability
+    of disease (0.5 cut-off)."""
+    prediction = (probability >= 0.5).astype(int)
+    return {
+        "accuracy": accuracy_score(y_true, prediction),
+        "precision": precision_score(y_true, prediction),
+        "recall": recall_score(y_true, prediction),
+        "f1": f1_score(y_true, prediction),
+        "roc_auc": roc_auc_score(y_true, probability),
+    }
+
+
+def passes_quality_gate(test_metrics: dict) -> bool:
+    return test_metrics["roc_auc"] >= ROC_AUC_GATE
 
 
 def cross_val_probabilities(pipeline, X_train, y_train, folds):

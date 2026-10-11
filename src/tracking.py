@@ -14,9 +14,11 @@ from src.evaluation import (
     CV_FOLDS,
     METRICS,
     RANDOM_STATE,
+    ROC_AUC_GATE,
     ROOT,
     TUNING_METRIC,
     cross_val_probabilities,
+    passes_quality_gate,
     plot_confusion_matrix,
     plot_roc_curve,
 )
@@ -209,3 +211,36 @@ def load_model_results() -> pd.DataFrame:
         rows[row["model"]] = row
 
     return pd.DataFrame(list(rows.values()))
+
+
+def load_trained_model(run_id):
+    """The trained model saved in a parent run."""
+    setup_mlflow()
+    return mlflow.sklearn.load_model(f"runs:/{run_id}/model")
+
+
+def log_test_results(run_id, model_name, test_metrics, y_test, probability):
+    """Add the test-set metrics and plots to the parent run of the selected
+    model."""
+    setup_mlflow()
+    title = f"{model_name} (test set)"
+
+    with mlflow.start_run(run_id=run_id):
+        mlflow.set_tag("selected_model", "true")
+        mlflow.set_tag("quality_gate_passed", str(passes_quality_gate(test_metrics)))
+
+        mlflow.log_param("test_patients", len(y_test))
+        mlflow.log_param("roc_auc_gate", ROC_AUC_GATE)
+
+        for metric in METRICS:
+            mlflow.log_metric(f"test_{metric}", test_metrics[metric])
+
+        fig = plot_roc_curve(y_test, probability, f"ROC curve - {title}")
+        mlflow.log_figure(fig, "plots/test_roc_curve.png")
+        plt.close(fig)
+
+        fig = plot_confusion_matrix(y_test, probability, f"Confusion matrix - {title}")
+        mlflow.log_figure(fig, "plots/test_confusion_matrix.png")
+        plt.close(fig)
+
+    print(f"Logged to MLflow: test results of {model_name}.")

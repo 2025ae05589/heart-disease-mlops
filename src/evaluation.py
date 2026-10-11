@@ -36,6 +36,9 @@ METRICS = {
 # decides the best combination of settings of a model
 TUNING_METRIC = "roc_auc"
 
+# models within this much of the best mean ROC-AUC are treated as close
+ROC_AUC_GAP = 0.01
+
 
 def split_data():
     """Return X_train, X_test, y_train, y_test (stratified 80/20 split)."""
@@ -106,6 +109,14 @@ def readable_metrics(metrics_table: pd.DataFrame) -> pd.DataFrame:
         std = metrics_table[f"{metric}_std"].map("{:.3f}".format)
         table[metric] = mean + " ± " + std
     return table
+
+
+def select_best_model(results: pd.DataFrame) -> pd.Series:
+    """Row of the selected model: among the models close to the best mean
+    ROC-AUC, the one with the highest mean recall."""
+    best_roc_auc = results["roc_auc_mean"].max()
+    close = results[results["roc_auc_mean"] >= best_roc_auc - ROC_AUC_GAP]
+    return close.loc[close["recall_mean"].idxmax()]
 
 
 def cross_val_probabilities(pipeline, X_train, y_train, folds):

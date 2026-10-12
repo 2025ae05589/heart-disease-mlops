@@ -1,0 +1,13 @@
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+# so that "from src..." works when pytest is run from the project root
+pythonpath = ["."]
+
+[tool.ruff]
+line-length = 100
+# only the Python files are checked
+extend-exclude = ["notebooks"]
+
+[tool.ruff.lint]
+# E, W: style errors and warnings; F: unused or undefined names; I: order of imports
+select = ["E", "W", "F", "I"]

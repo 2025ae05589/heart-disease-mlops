@@ -1,0 +1,66 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+jobs:
+  lint-test-train:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        # with this shell a step fails if any command in a pipe fails
+        shell: bash
+
+    steps:
+      - name: Check out the code
+        uses: actions/checkout@v6
+
+      - name: Set up Python
+        uses: actions/setup-python@v6
+        with:
+          python-version: "3.12"
+          cache: pip
+
+      - name: Install packages
+        run: pip install -r requirements.txt
+
+      - name: Lint
+        run: ruff check .
+
+      - name: Unit tests
+        run: pytest -v --junitxml=ci-output/unit-tests.xml
+
+      # ends with an error if the selected model fails the quality gate
+      - name: Train the models
+        run: |
+          mkdir -p ci-output
+          python -m src.train 2>&1 | tee ci-output/training.log
+
+      # loads the exported model on its own, without the MLflow store
+      - name: Check the champion model
+        run: python -m src.validate_model
+
+      - name: Upload test report and training log
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: test-report-and-training-log
+          path: ci-output/
+
+      - name: Upload champion model
+        uses: actions/upload-artifact@v7
+        with:
+          name: champion-model
+          path: models/champion/
+          if-no-files-found: error
+
+      - name: Upload MLflow store
+        uses: actions/upload-artifact@v7
+        with:
+          name: mlflow-store
+          path: |
+            mlflow.db
+            mlruns/

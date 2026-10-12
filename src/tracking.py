@@ -1,5 +1,8 @@
 """Common functions for recording experiments in MLflow."""
 import hashlib
+import os
+import shutil
+import subprocess
 import warnings
 from importlib.metadata import version
 
@@ -7,6 +10,8 @@ import matplotlib.pyplot as plt
 import mlflow
 import mlflow.sklearn
 import pandas as pd
+from mlflow import MlflowClient
+from mlflow.exceptions import MlflowException
 from sklearn.base import clone
 
 from src.data_prep import CLEAN_PATH, SOURCE_PATH
@@ -23,9 +28,20 @@ from src.evaluation import (
     plot_roc_curve,
 )
 
-MLFLOW_URI = "sqlite:///" + (ROOT / "mlflow.db").as_posix()
+# A local file by default. A shared MLflow server is used instead when its
+# address is given in the environment variable MLFLOW_TRACKING_URI.
+MLFLOW_URI = os.environ.get(
+    "MLFLOW_TRACKING_URI", "sqlite:///" + (ROOT / "mlflow.db").as_posix()
+)
+# where the artifacts of the local store are kept
 ARTIFACT_DIR = ROOT / "mlruns"
 EXPERIMENT = "Heart Disease Prediction"
+
+# name in the model registry; the aliases "challenger" and "champion" point
+# to versions of it
+MODEL_NAME = "heart-disease-classifier"
+# the champion is copied here for the API and the Docker image
+EXPORT_DIR = ROOT / "models" / "champion"
 
 # skops, the format MLflow saves in, refuses types it does not know.
 TRUSTED_TYPES = [
@@ -47,7 +63,11 @@ warnings.filterwarnings("ignore", message="Hint: Inferred schema contains intege
 def setup_mlflow():
     mlflow.set_tracking_uri(MLFLOW_URI)
     if mlflow.get_experiment_by_name(EXPERIMENT) is None:
-        mlflow.create_experiment(EXPERIMENT, artifact_location=ARTIFACT_DIR.as_uri())
+        if MLFLOW_URI.startswith("sqlite:"):
+            mlflow.create_experiment(EXPERIMENT, artifact_location=ARTIFACT_DIR.as_uri())
+        else:
+            # a shared server keeps the artifacts in its own storage
+            mlflow.create_experiment(EXPERIMENT)
     mlflow.set_experiment(EXPERIMENT)
 
 
@@ -244,3 +264,79 @@ def log_test_results(run_id, model_name, test_metrics, y_test, probability):
         plt.close(fig)
 
     print(f"Logged to MLflow: test results of {model_name}.")
+
+
+def git_commit():
+    """Short hash of the current git commit, or "unknown" if git is not there."""
+    try:
+        result = subprocess.run(
+            ["git", "rev-parse", "--short", "HEAD"],
+            cwd=ROOT, capture_output=True, text=True, check=True,
+        )
+    except (OSError, subprocess.CalledProcessError):
+        return "unknown"
+    return result.stdout.strip()
+
+
+def register_challenger(run_id, test_metrics):
+    """Register the trained model of a parent run as a new version, with the
+    alias challenger. Returns the version number."""
+    setup_mlflow()
+    client = MlflowClient()
+
+    # MLflow keeps the trained model of a run under its own model id
+    model_id = client.get_run(run_id).outputs.model_outputs[0].model_id
+    model_version = mlflow.register_model(f"models:/{model_id}", MODEL_NAME)
+    number = model_version.version
+    client.set_registered_model_alias(MODEL_NAME, "challenger", number)
+
+    for metric in METRICS:
+        client.set_model_version_tag(
+            MODEL_NAME, number, f"test_{metric}", f"{test_metrics[metric]:.4f}"
+        )
+    client.set_model_version_tag(MODEL_NAME, number, "data_sha256", file_hash(CLEAN_PATH))
+    client.set_model_version_tag(MODEL_NAME, number, "git_commit", git_commit())
+    return number
+
+
+def get_champion():
+    """The model version with the alias champion, or None if there is none."""
+    setup_mlflow()
+    try:
+        return MlflowClient().get_model_version_by_alias(MODEL_NAME, "champion")
+    except MlflowException:
+        return None
+
+
+def champion_test_roc_auc():
+    """ROC-AUC of the champion on the test set, or None if there is no
+    champion."""
+    champion = get_champion()
+    if champion is None:
+        return None
+    run = MlflowClient().get_run(champion.run_id)
+    return run.data.metrics["test_roc_auc"]
+
+
+def promote_to_champion(number):
+    """Move the alias champion to this version."""
+    client = MlflowClient()
+    client.set_registered_model_alias(MODEL_NAME, "champion", number)
+    client.delete_registered_model_alias(MODEL_NAME, "challenger")
+
+
+def mark_gate_failed(number, gate):
+    """Record on the version which gate it failed."""
+    MlflowClient().set_model_version_tag(MODEL_NAME, number, "failed_gate", gate)
+
+
+def export_champion():
+    """Copy the champion out of MLflow into EXPORT_DIR. Returns its version
+    number."""
+    setup_mlflow()
+    if EXPORT_DIR.exists():
+        shutil.rmtree(EXPORT_DIR)
+    mlflow.artifacts.download_artifacts(
+        artifact_uri=f"models:/{MODEL_NAME}@champion", dst_path=str(EXPORT_DIR)
+    )
+    return get_champion().version

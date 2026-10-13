@@ -5,8 +5,12 @@ xgboost==3.4.1
 mlflow==3.16.1
 skops==0.16.0
 PyYAML==6.0.3
+fastapi==0.142.2
+uvicorn==0.54.0
+pydantic==2.13.5
 matplotlib==3.11.2
 seaborn==0.13.2
 notebook==7.6.3
 pytest==9.1.1
+httpx2==2.13.1
 ruff==0.17.0

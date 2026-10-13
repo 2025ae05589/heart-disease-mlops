@@ -1,0 +1,17 @@
+# One address for the API, with the requests shared among the copies that
+# report ready.
+
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ .Chart.Name }}
+  labels:
+    app: {{ .Chart.Name }}
+spec:
+  type: {{ .Values.service.type }}
+  selector:
+    app: {{ .Chart.Name }}
+  ports:
+    # the port of the address outside, and the port of the container inside
+    - port: {{ .Values.service.port }}
+      targetPort: {{ .Values.containerPort }}

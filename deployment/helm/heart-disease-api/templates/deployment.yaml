@@ -1,0 +1,43 @@
+# Runs the copies of the prediction API and keeps them running.
+
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ .Chart.Name }}
+  labels:
+    app: {{ .Chart.Name }}
+spec:
+  replicas: {{ .Values.replicaCount }}
+  selector:
+    matchLabels:
+      app: {{ .Chart.Name }}
+  template:
+    metadata:
+      labels:
+        app: {{ .Chart.Name }}
+    spec:
+      containers:
+        - name: api
+          # the installation stops with this message if no tag is given
+          image: "{{ .Values.image.repository }}:{{ required "image.tag has to be given: --set image.tag=<commit number>" .Values.image.tag }}"
+          ports:
+            - containerPort: {{ .Values.containerPort }}
+          resources:
+            {{- toYaml .Values.resources | nindent 12 }}
+          # up to 60 seconds are allowed for a new copy to load the model
+          startupProbe:
+            httpGet:
+              path: /health
+              port: {{ .Values.containerPort }}
+            periodSeconds: 5
+            failureThreshold: 12
+          # requests are sent to a copy only while it reports ready
+          readinessProbe:
+            httpGet:
+              path: /health
+              port: {{ .Values.containerPort }}
+          # a copy that stops answering is restarted
+          livenessProbe:
+            httpGet:
+              path: /health
+              port: {{ .Values.containerPort }}

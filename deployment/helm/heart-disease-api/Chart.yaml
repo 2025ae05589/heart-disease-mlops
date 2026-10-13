@@ -1,0 +1,15 @@
+# Helm chart of the prediction API.
+#
+#   helm upgrade --install heart-disease-api deployment/helm/heart-disease-api \
+#     --set image.tag=<commit number>
+#
+# The values that can be set are in values.yaml.
+
+apiVersion: v2
+name: heart-disease-api
+description: Prediction API for heart disease, with the champion model inside the image
+type: application
+# version of this chart
+version: 0.1.0
+# version of the API
+appVersion: "1.0"

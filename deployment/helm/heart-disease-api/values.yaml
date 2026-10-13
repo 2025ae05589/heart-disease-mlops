@@ -1,0 +1,32 @@
+# Values of the chart. Any of them can be changed at the time of installing,
+# for example:
+#   --set image.repository=<registry address> --set image.tag=<commit number>
+
+image:
+  # the public image; the pipeline gives the image of its own run instead
+  repository: ghcr.io/2025ae05589/heart-disease-api
+  # Each image is tagged with the commit number it was built from. The tag
+  # has no default: it has to be given when installing, so that it is always
+  # known which version is running.
+  tag: ""
+
+# number of copies of the API
+replicaCount: 2
+
+# port on which the API listens inside the container
+containerPort: 8000
+
+service:
+  # LoadBalancer gives one address, with the requests shared among the copies
+  type: LoadBalancer
+  # port of that address
+  port: 80
+
+# one running copy was measured at about 195 MiB of memory
+resources:
+  requests:
+    memory: "256Mi"
+    cpu: "250m"
+  limits:
+    memory: "512Mi"
+    cpu: "500m"

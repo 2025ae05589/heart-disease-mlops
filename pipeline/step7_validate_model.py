@@ -17,7 +17,7 @@ from pathlib import Path
 import numpy as np
 
 from src.config import EXPORT_DIR, LOG_DATE_FORMAT, LOG_FORMAT
-from src.deployment.packaging import validate_exported_model
+from src.packaging.export import validate_exported_model
 
 log = logging.getLogger("step7_validate_model")
 

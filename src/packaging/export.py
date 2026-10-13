@@ -1,8 +1,8 @@
 """Packaging of the champion model for deployment.
 
 The champion is copied out of the MLflow registry into the folder
-models/champion/. The API and the Docker image will load the model from
-this folder. So they do not need the MLflow database (mlflow.db and mlruns/).
+models/champion/. The API and the Docker image load the model from this
+folder. So they do not need the MLflow database (mlflow.db and mlruns/).
 
 The folder is also checked here: the model is loaded from it and predicts
 for the sample patients saved with it.

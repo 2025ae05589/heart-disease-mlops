@@ -11,7 +11,7 @@ import logging
 import sys
 
 from src.config import EXPORT_DIR, LOG_DATE_FORMAT, LOG_FORMAT
-from src.deployment.packaging import export_champion
+from src.packaging.export import export_champion
 from src.tracking.registry import get_champion
 
 log = logging.getLogger("step6_export_model")

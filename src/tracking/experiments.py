@@ -46,10 +46,9 @@ TRUSTED_TYPES = [
     "xgboost.sklearn.XGBClassifier",  # XGBoost
 ]
 
-# Listed here, otherwise MLflow takes about 14 seconds per model to find them.
-MODEL_REQUIREMENTS = []
-for package in ["scikit-learn", "xgboost", "pandas", "numpy", "skops"]:
-    MODEL_REQUIREMENTS.append(f"{package}=={version(package)}")
+# Packages needed to load any of the models. They are listed here, otherwise
+# MLflow takes about 14 seconds per model to find them.
+BASE_PACKAGES = ["scikit-learn", "pandas", "numpy", "skops"]
 
 # The warning is about the prediction column, which is never missing.
 warnings.filterwarnings("ignore", message="Hint: Inferred schema contains integer")
@@ -97,6 +96,20 @@ def log_plots(pipeline, X_train, y_train, folds, title):
     plt.close(fig)
 
 
+def model_requirements(pipeline):
+    """Return the packages needed to load this model, with the versions used
+    in training. xgboost is listed only for a model that uses it, so that a
+    Docker image of another model does not have to install it."""
+    packages = list(BASE_PACKAGES)
+    if type(pipeline.named_steps["model"]).__module__.startswith("xgboost"):
+        packages.append("xgboost")
+
+    requirements = []
+    for package in packages:
+        requirements.append(f"{package}=={version(package)}")
+    return requirements
+
+
 def log_trained_model(pipeline, X_train, y_train):
     """Train the pipeline on all the training patients and log it in the
     active run, with five patients as the sample input."""
@@ -105,7 +118,7 @@ def log_trained_model(pipeline, X_train, y_train):
         pipeline,
         name="model",
         input_example=X_train.head(5),
-        pip_requirements=MODEL_REQUIREMENTS,
+        pip_requirements=model_requirements(pipeline),
         skops_trusted_types=TRUSTED_TYPES,
     )
 

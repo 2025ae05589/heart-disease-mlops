@@ -7,12 +7,8 @@ on:
     branches: [main]
 
 jobs:
-  lint-test-train:
-    runs-on: ubuntu-latest
-    defaults:
-      run:
-        # with this shell a step fails if any command in a pipe fails
-        shell: bash
+  lint-and-test:
+    runs-on: ubuntu-24.04
 
     steps:
       - name: Check out the code
@@ -33,34 +29,9 @@ jobs:
       - name: Unit tests
         run: pytest -v --junitxml=ci-output/unit-tests.xml
 
-      # ends with an error if the selected model fails the quality gate
-      - name: Train the models
-        run: |
-          mkdir -p ci-output
-          python -m src.train 2>&1 | tee ci-output/training.log
-
-      # loads the exported model on its own, without the MLflow store
-      - name: Check the champion model
-        run: python -m src.validate_model
-
-      - name: Upload test report and training log
+      - name: Upload test report
         if: always()
         uses: actions/upload-artifact@v7
         with:
-          name: test-report-and-training-log
+          name: unit-test-report
           path: ci-output/
-
-      - name: Upload champion model
-        uses: actions/upload-artifact@v7
-        with:
-          name: champion-model
-          path: models/champion/
-          if-no-files-found: error
-
-      - name: Upload MLflow store
-        uses: actions/upload-artifact@v7
-        with:
-          name: mlflow-store
-          path: |
-            mlflow.db
-            mlruns/

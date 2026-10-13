@@ -59,7 +59,7 @@ def client(monkeypatch, fake_model):
         name="heart-disease-classifier",
         version="7",
         run_id="abc123",
-        trained_at="2026-10-12 18:19:42",
+        trained_at="2026-10-12 18:19:42 UTC",
     )
     monkeypatch.setattr(main, "load_model", lambda: loaded)
     with TestClient(main.app) as test_client:
@@ -81,7 +81,7 @@ def test_model_info(client):
         "model_name": "heart-disease-classifier",
         "model_version": "7",
         "run_id": "abc123",
-        "trained_at": "2026-10-12 18:19:42",
+        "trained_at": "2026-10-12 18:19:42 UTC",
     }
 
 
@@ -257,7 +257,8 @@ def test_exported_model_folder_is_loaded(tmp_path):
     assert loaded.name == "heart-disease-classifier"
     assert loaded.version == "3"
     assert loaded.run_id == "run-of-the-test"
-    assert len(loaded.trained_at) == len("2026-10-12 18:19:42")
+    assert len(loaded.trained_at) == len("2026-10-12 18:19:42 UTC")
+    assert loaded.trained_at.endswith(" UTC")
     assert [result["filled_fields"] for result in results] == [[], ["ca", "thal"]]
     for result in results:
         assert result["prediction"] in (0, 1)

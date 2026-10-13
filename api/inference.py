@@ -48,7 +48,7 @@ def load_model(model_dir: Path = MODEL_DIR) -> LoadedModel:
         version=str(registry["model_version"]),
         run_id=details["run_id"],
         # the fraction of a second is left out
-        trained_at=str(details["utc_time_created"]).split(".")[0],
+        trained_at=str(details["utc_time_created"]).split(".")[0] + " UTC",
     )
 
 

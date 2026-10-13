@@ -1,7 +1,7 @@
 name: CI
 
-# One pipeline with two jobs. The models are trained only if the lint check
-# and the unit tests pass.
+# One pipeline with three jobs, each started only if the one before it has
+# passed: lint and unit tests, training, and the Docker image of the API.
 on:
   push:
     branches: [main]
@@ -104,3 +104,77 @@ jobs:
           path: |
             mlflow.db
             mlruns/
+
+  docker:
+    # not started if the training has failed
+    needs: train
+    runs-on: ubuntu-24.04
+    defaults:
+      run:
+        # with this shell a step fails if any command in a pipe fails
+        shell: bash
+
+    steps:
+      - name: Check out the code
+        uses: actions/checkout@v6
+
+      # the model exported by the train job of this run
+      - name: Get the champion model
+        uses: actions/download-artifact@v8
+        with:
+          name: champion-model
+          path: models/champion/
+
+      - name: Build the image
+        run: docker build -t heart-disease-api:${{ github.sha }} .
+
+      - name: Start the container
+        run: |
+          mkdir -p ci-output
+          docker run -d --name api -p 8000:8000 heart-disease-api:${{ github.sha }}
+
+      # /health answers with an error until the model is loaded
+      - name: Wait until the model is loaded
+        run: |
+          for attempt in $(seq 1 30); do
+            if curl --silent --fail http://127.0.0.1:8000/health; then
+              exit 0
+            fi
+            sleep 2
+          done
+          echo "The service did not become ready"
+          exit 1
+
+      - name: Show the model being served
+        run: curl --silent --fail http://127.0.0.1:8000/model-info | tee ci-output/model-info.json
+
+      # the reply must have a prediction of 0 or 1 and a confidence of 0.5 to 1
+      - name: Send the sample request
+        run: |
+          curl --silent --fail -X POST http://127.0.0.1:8000/predict \
+            -H "Content-Type: application/json" \
+            -d @api/sample_request.json | tee ci-output/prediction.json
+          jq --exit-status \
+            '(.prediction == 0 or .prediction == 1) and .confidence >= 0.5 and .confidence <= 1' \
+            ci-output/prediction.json
+
+      # a code that is not valid must be refused with status 422
+      - name: Send a wrong request
+        run: |
+          status=$(jq '.cp = 9' api/sample_request.json | curl --silent \
+            --output ci-output/refused.json --write-out "%{http_code}" \
+            -X POST http://127.0.0.1:8000/predict \
+            -H "Content-Type: application/json" -d @-)
+          cat ci-output/refused.json
+          test "$status" = "422"
+
+      - name: Save the container log
+        if: always()
+        run: docker logs api > ci-output/container.log 2>&1 || true
+
+      - name: Upload the replies and the container log
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: docker-check
+          path: ci-output/

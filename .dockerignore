@@ -1,0 +1,16 @@
+# Folders and files that Docker does not need to read while building the
+# image. The image takes only api/, the data dictionary and models/champion/.
+.git
+.github
+.venv
+.pytest_cache
+.ruff_cache
+**/__pycache__
+ci-output
+data
+mlruns
+mlflow.db
+notebooks
+pipeline
+report
+tests

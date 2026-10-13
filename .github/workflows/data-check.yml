@@ -11,7 +11,7 @@ name: Data check
 #    shows red on GitHub and the change is noticed. The new data is reviewed
 #    by a person. If it is accepted, the recorded hash is updated, steps 1
 #    and 2 are run again and the data files are committed. That push starts
-#    the training workflow (train.yml).
+#    the CI pipeline (ci.yml), which trains the models again.
 # 3. The site cannot be reached: the check could not be done and the run
 #    fails. The data is not in question; the check is run again later.
 #

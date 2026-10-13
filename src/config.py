@@ -1,12 +1,23 @@
 """All the settings of the project, in one place.
 
-Data source and file paths, feature lists, split and cross-validation
-settings, metrics, the selection rule, the quality gate, the grid of each
-model, MLflow names and the log format. Only values are kept here; every
-other file takes its settings from this file.
+Data source and file paths, split and cross-validation settings, metrics,
+the selection rule, the quality gate, the grid of each model, MLflow names
+and the log format. Only values are kept here; every other file takes its
+settings from this file. The feature lists and their valid values come from
+src/data/data_dictionary.py.
 """
 import os
 from pathlib import Path
+
+# not used in this file; imported so that other files can take them from here
+from src.data.data_dictionary import (  # noqa: F401
+    ABOVE_ZERO,
+    CATEGORICAL,
+    FEATURES,
+    NUMERIC,
+    VALID_CODES,
+    ZERO_OR_ABOVE,
+)
 
 # The project folder. Paths below are written from this folder, so the code
 # runs the same way from the project root and from the notebooks folder.
@@ -71,10 +82,8 @@ CLEAN_PATH = Path("data/processed/heart_clean.csv")
 
 # ------------------------------------------------------------------- features
 
-# "ca" is a count, but it is treated as categorical (EDA notebook, section 11)
-NUMERIC = ["age", "trestbps", "chol", "thalach", "oldpeak"]
-CATEGORICAL = ["sex", "cp", "fbs", "restecg", "exang", "slope", "ca", "thal"]
-FEATURES = NUMERIC + CATEGORICAL
+# NUMERIC, CATEGORICAL, FEATURES and the valid values are imported at the top
+# from the data dictionary, as the API uses them too.
 TARGET = "target"
 
 # ------------------------------------------------- split and cross-validation

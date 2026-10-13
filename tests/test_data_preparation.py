@@ -1,9 +1,16 @@
-"""Tests for the data cleaning."""
+"""Tests for src/data/preparation.py: the cleaning and the split into
+training and test patients.
+
+The cleaning is tested on three made-up rows and on the files in the
+repository. The split is tested for its sizes, for the same share of disease
+in both parts, and for giving the same patients every time.
+"""
 import numpy as np
 import pandas as pd
+import pytest
 
-from src.data_prep import CATEGORICAL, CLEAN_PATH, NUMERIC, RAW_PATH, TARGET, clean, prepare
-from src.evaluation import ROOT
+from src.config import CATEGORICAL, CLEAN_PATH, FEATURES, NUMERIC, RAW_PATH, ROOT, TARGET
+from src.data.preparation import clean, prepare, split_data
 
 
 def raw_sample() -> pd.DataFrame:
@@ -90,3 +97,30 @@ def test_clean_file_comes_from_the_raw_file():
     saved = pd.read_csv(ROOT / CLEAN_PATH)
 
     pd.testing.assert_frame_equal(cleaned, saved, check_dtype=False)
+
+
+def test_split_sizes():
+    X_train, X_test, y_train, y_test = split_data()
+
+    assert len(X_train) == len(y_train) == 242
+    assert len(X_test) == len(y_test) == 61
+    assert X_train.columns.tolist() == FEATURES
+
+
+def test_split_is_stratified():
+    _, _, y_train, y_test = split_data()
+
+    assert y_train.mean() == pytest.approx(y_test.mean(), abs=0.01)
+
+
+def test_split_is_the_same_every_time():
+    first = split_data()
+    second = split_data()
+
+    assert first[1].index.tolist() == second[1].index.tolist()
+
+
+def test_no_patient_is_in_both_parts():
+    X_train, X_test, _, _ = split_data()
+
+    assert set(X_train.index).isdisjoint(X_test.index)

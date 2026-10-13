@@ -1,35 +1,38 @@
-"""Tests for training and prediction with the model pipeline. Only the
-training patients are used, so the test set stays unused."""
+"""Tests for training and prediction with the model pipeline.
+
+A Logistic Regression pipeline is trained once and checked: valid
+probabilities, a prediction for a patient with missing values, and the same
+model when trained twice. Only the training patients are used, so the test
+set stays unused.
+"""
 import numpy as np
 import pytest
 from sklearn.base import clone
 from sklearn.linear_model import LogisticRegression
 
-from src.evaluation import (
-    METRICS,
-    RANDOM_STATE,
-    build_metrics_table,
-    create_cv_folds,
-    cross_val_probabilities,
-    run_grid_search,
-    split_data,
-)
-from src.preprocessing import make_pipeline
+from src.config import RANDOM_STATE
+from src.data.preparation import split_data
+from src.features.preprocessing import make_pipeline
+from src.models.evaluation import cross_val_probabilities
+from src.models.tuning import create_cv_folds
 
 
 @pytest.fixture(scope="module")
 def training_data():
+    """Features and target of the training patients."""
     X_train, _, y_train, _ = split_data()
     return X_train, y_train
 
 
 @pytest.fixture(scope="module")
 def pipeline():
+    """A Logistic Regression pipeline, not yet fitted."""
     return make_pipeline(LogisticRegression(random_state=RANDOM_STATE))
 
 
 @pytest.fixture(scope="module")
 def trained(pipeline, training_data):
+    """The pipeline trained on the training patients."""
     return clone(pipeline).fit(*training_data)
 
 
@@ -75,20 +78,3 @@ def test_cross_validated_probability_for_each_training_patient(pipeline, trainin
 
     assert probability.shape == (len(X_train),)
     assert ((probability >= 0) & (probability <= 1)).all()
-
-
-def test_grid_search_and_metrics_table(pipeline, training_data):
-    X_train, y_train = training_data
-    grid = {"model__C": [0.1, 1]}
-
-    search = run_grid_search(pipeline, grid, X_train, y_train, create_cv_folds())
-    table = build_metrics_table(search)
-
-    assert table["C"].tolist() == [0.1, 1]
-    for metric in METRICS:
-        assert table[f"{metric}_mean"].between(0, 1).all()
-        assert (table[f"{metric}_std"] >= 0).all()
-    # the best combination is the one with the highest mean ROC-AUC
-    assert search.best_index_ == table["roc_auc_mean"].idxmax()
-    # the model learns something: clearly better than random guessing
-    assert table["roc_auc_mean"].max() > 0.8

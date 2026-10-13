@@ -1,20 +1,28 @@
-"""Tests for the preprocessing steps. Only the training patients are used."""
+"""Tests for src/features/preprocessing.py: the preprocessing steps.
+
+It is checked that missing values are filled, numerical features are
+standardised, categorical features are one-hot encoded, and a category not
+seen in training does not cause an error. Only the training patients are
+used.
+"""
 import numpy as np
 import pytest
 from sklearn.linear_model import LogisticRegression
 
-from src.data_prep import CATEGORICAL, NUMERIC
-from src.evaluation import split_data
-from src.preprocessing import build_preprocessor, make_pipeline
+from src.config import CATEGORICAL, NUMERIC
+from src.data.preparation import split_data
+from src.features.preprocessing import build_preprocessor, make_pipeline
 
 
 @pytest.fixture(scope="module")
 def X_train():
+    """Features of the training patients."""
     return split_data()[0]
 
 
 @pytest.fixture(scope="module")
 def preprocessor(X_train):
+    """The preprocessing steps fitted on the training patients."""
     return build_preprocessor().set_output(transform="pandas").fit(X_train)
 
 

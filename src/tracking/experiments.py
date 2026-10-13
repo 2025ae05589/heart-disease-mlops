@@ -1,8 +1,13 @@
-"""Common functions for recording experiments in MLflow."""
+"""Functions for recording experiments in MLflow and reading them back.
+
+Each model gets one parent run, and one child run under it for every
+combination of its settings. The parent run holds the best setting, its
+metrics and plots, the trained model and the hashes of the data files. The
+test-set results are added later to the parent run of the selected model.
+
+Used by steps 3, 4 and 5 of the pipeline and by the notebook.
+"""
 import hashlib
-import os
-import shutil
-import subprocess
 import warnings
 from importlib.metadata import version
 
@@ -11,37 +16,27 @@ import mlflow
 import mlflow.sklearn
 import pandas as pd
 from mlflow import MlflowClient
-from mlflow.exceptions import MlflowException
 from sklearn.base import clone
 
-from src.data_prep import CLEAN_PATH, SOURCE_PATH
-from src.evaluation import (
+from src.config import (
+    ARTIFACT_DIR,
+    CLEAN_PATH,
     CV_FOLDS,
+    EXPERIMENT,
     METRICS,
+    MLFLOW_URI,
     RANDOM_STATE,
     ROC_AUC_GATE,
     ROOT,
+    SOURCE_PATH,
     TUNING_METRIC,
+)
+from src.models.evaluation import (
     cross_val_probabilities,
     passes_quality_gate,
     plot_confusion_matrix,
     plot_roc_curve,
 )
-
-# A local file by default. A shared MLflow server is used instead when its
-# address is given in the environment variable MLFLOW_TRACKING_URI.
-MLFLOW_URI = os.environ.get(
-    "MLFLOW_TRACKING_URI", "sqlite:///" + (ROOT / "mlflow.db").as_posix()
-)
-# where the artifacts of the local store are kept
-ARTIFACT_DIR = ROOT / "mlruns"
-EXPERIMENT = "Heart Disease Prediction"
-
-# name in the model registry; the aliases "challenger" and "champion" point
-# to versions of it
-MODEL_NAME = "heart-disease-classifier"
-# the champion is copied here for the API and the Docker image
-EXPORT_DIR = ROOT / "models" / "champion"
 
 # skops, the format MLflow saves in, refuses types it does not know.
 TRUSTED_TYPES = [
@@ -61,6 +56,8 @@ warnings.filterwarnings("ignore", message="Hint: Inferred schema contains intege
 
 
 def setup_mlflow():
+    """Point MLflow to the store given in MLFLOW_URI and select the
+    experiment. The experiment is created on first use."""
     mlflow.set_tracking_uri(MLFLOW_URI)
     if mlflow.get_experiment_by_name(EXPERIMENT) is None:
         if MLFLOW_URI.startswith("sqlite:"):
@@ -72,21 +69,23 @@ def setup_mlflow():
 
 
 def file_hash(path):
-    """SHA-256 hash of a data file. Line endings are made the same first,
-    as they differ between Windows and Linux."""
+    """Return the SHA-256 hash of a data file. Line endings are made the same
+    first, as they differ between Windows and Linux."""
     content = (ROOT / path).read_bytes().replace(b"\r\n", b"\n")
     return hashlib.sha256(content).hexdigest()
 
 
 def log_metrics(row):
-    """Log the mean and std of every metric from one row of the metrics table."""
+    """Log the cross-validation mean and std of every metric in the active
+    run. row: one row of the metrics table."""
     for metric in METRICS:
         mlflow.log_metric(f"cv_{metric}_mean", row[f"{metric}_mean"])
         mlflow.log_metric(f"cv_{metric}_std", row[f"{metric}_std"])
 
 
 def log_plots(pipeline, X_train, y_train, folds, title):
-    """Log the ROC curve and the confusion matrix in the active run."""
+    """Log the ROC curve and the confusion matrix in the active run. Both
+    are made from cross-validated predictions on the training patients."""
     probability = cross_val_probabilities(pipeline, X_train, y_train, folds)
 
     fig = plot_roc_curve(y_train, probability, f"ROC curve - {title}")
@@ -99,7 +98,8 @@ def log_plots(pipeline, X_train, y_train, folds, title):
 
 
 def log_trained_model(pipeline, X_train, y_train):
-    """Train the pipeline on all the training patients and log it."""
+    """Train the pipeline on all the training patients and log it in the
+    active run, with five patients as the sample input."""
     pipeline.fit(X_train, y_train)
     mlflow.sklearn.log_model(
         pipeline,
@@ -112,7 +112,12 @@ def log_trained_model(pipeline, X_train, y_train):
 
 def log_combination_run(model_name, pipeline, settings, row, is_best,
                         X_train, y_train, folds, tags=None):
-    """Log one combination of settings as a child run."""
+    """Log one combination of settings as a child run: its settings, metrics
+    and plots.
+
+    row: the row of this combination in the metrics table.
+    is_best: True for the best combination of the model.
+    """
     parts = []
     for name, value in settings.items():
         parts.append(f"{name}={value}")
@@ -135,7 +140,13 @@ def log_combination_run(model_name, pipeline, settings, row, is_best,
 
 def log_model_summary(model_name, pipeline, metrics_table, best_index,
                       X_train, y_train, folds):
-    """Log the summary of a model in its parent run."""
+    """Log the summary of a model in its parent run: the best setting, its
+    metrics and plots, the table of all combinations, the hashes of the data
+    files and the trained model.
+
+    pipeline: the pipeline with the best setting, not yet fitted.
+    best_index: row of the best combination in the metrics table.
+    """
     best_row = metrics_table.loc[best_index]
 
     mlflow.set_tag("run_type", "model")
@@ -198,8 +209,9 @@ def log_model_runs(model_name, pipeline, search, metrics_table,
 
 
 def load_model_results() -> pd.DataFrame:
-    """One row per model, read from the parent runs in MLflow: the best
-    setting, its cross-validation metrics and the run ID."""
+    """Return a table with one row per model, read from the parent runs in
+    MLflow: the best setting, its cross-validation metrics and the run ID.
+    If a model was run more than once, its latest run is taken."""
     setup_mlflow()
     runs = mlflow.search_runs(
         filter_string="tags.run_type = 'model'",
@@ -234,14 +246,18 @@ def load_model_results() -> pd.DataFrame:
 
 
 def load_trained_model(run_id):
-    """The trained model saved in a parent run."""
+    """Return the trained model saved in a parent run."""
     setup_mlflow()
     return mlflow.sklearn.load_model(f"runs:/{run_id}/model")
 
 
 def log_test_results(run_id, model_name, test_metrics, y_test, probability):
-    """Add the test-set metrics and plots to the parent run of the selected
-    model."""
+    """Add the test-set results to the parent run of the selected model: the
+    metrics, the plots, the tag selected_model and whether gate 1 passed.
+
+    run_id: parent run of the selected model.
+    probability: predicted probability of disease for the test patients.
+    """
     setup_mlflow()
     title = f"{model_name} (test set)"
 
@@ -266,77 +282,16 @@ def log_test_results(run_id, model_name, test_metrics, y_test, probability):
     print(f"Logged to MLflow: test results of {model_name}.")
 
 
-def git_commit():
-    """Short hash of the current git commit, or "unknown" if git is not there."""
-    try:
-        result = subprocess.run(
-            ["git", "rev-parse", "--short", "HEAD"],
-            cwd=ROOT, capture_output=True, text=True, check=True,
-        )
-    except (OSError, subprocess.CalledProcessError):
-        return "unknown"
-    return result.stdout.strip()
-
-
-def register_challenger(run_id, test_metrics):
-    """Register the trained model of a parent run as a new version, with the
-    alias challenger. Returns the version number."""
-    setup_mlflow()
+def load_selected_model():
+    """Return the name, run ID and test-set metrics of the selected model.
+    It is found by the tag selected_model among the latest runs. None if no
+    model has been tested yet."""
     client = MlflowClient()
-
-    # MLflow keeps the trained model of a run under its own model id
-    model_id = client.get_run(run_id).outputs.model_outputs[0].model_id
-    model_version = mlflow.register_model(f"models:/{model_id}", MODEL_NAME)
-    number = model_version.version
-    client.set_registered_model_alias(MODEL_NAME, "challenger", number)
-
-    for metric in METRICS:
-        client.set_model_version_tag(
-            MODEL_NAME, number, f"test_{metric}", f"{test_metrics[metric]:.4f}"
-        )
-    client.set_model_version_tag(MODEL_NAME, number, "data_sha256", file_hash(CLEAN_PATH))
-    client.set_model_version_tag(MODEL_NAME, number, "git_commit", git_commit())
-    return number
-
-
-def get_champion():
-    """The model version with the alias champion, or None if there is none."""
-    setup_mlflow()
-    try:
-        return MlflowClient().get_model_version_by_alias(MODEL_NAME, "champion")
-    except MlflowException:
-        return None
-
-
-def champion_test_roc_auc():
-    """ROC-AUC of the champion on the test set, or None if there is no
-    champion."""
-    champion = get_champion()
-    if champion is None:
-        return None
-    run = MlflowClient().get_run(champion.run_id)
-    return run.data.metrics["test_roc_auc"]
-
-
-def promote_to_champion(number):
-    """Move the alias champion to this version."""
-    client = MlflowClient()
-    client.set_registered_model_alias(MODEL_NAME, "champion", number)
-    client.delete_registered_model_alias(MODEL_NAME, "challenger")
-
-
-def mark_gate_failed(number, gate):
-    """Record on the version which gate it failed."""
-    MlflowClient().set_model_version_tag(MODEL_NAME, number, "failed_gate", gate)
-
-
-def export_champion():
-    """Copy the champion out of MLflow into EXPORT_DIR. Returns its version
-    number."""
-    setup_mlflow()
-    if EXPORT_DIR.exists():
-        shutil.rmtree(EXPORT_DIR)
-    mlflow.artifacts.download_artifacts(
-        artifact_uri=f"models:/{MODEL_NAME}@champion", dst_path=str(EXPORT_DIR)
-    )
-    return get_champion().version
+    for _, row in load_model_results().iterrows():
+        run = client.get_run(row["run_id"])
+        if run.data.tags.get("selected_model") == "true":
+            test_metrics = {}
+            for metric in METRICS:
+                test_metrics[metric] = run.data.metrics[f"test_{metric}"]
+            return row["model"], row["run_id"], test_metrics
+    return None

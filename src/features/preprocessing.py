@@ -1,10 +1,18 @@
-"""Preprocessing steps of the model pipeline, as decided in the EDA notebook."""
+"""Preprocessing steps of the model pipeline.
+
+Missing values are filled, categorical features are one-hot encoded and
+numerical features are standardised. These steps learn from the data, so
+they are kept inside the pipeline and are fitted on the training patients
+only.
+
+Used by step 3 of the pipeline, the notebooks and the tests.
+"""
 from sklearn.compose import ColumnTransformer
 from sklearn.impute import SimpleImputer
 from sklearn.pipeline import Pipeline
 from sklearn.preprocessing import OneHotEncoder, StandardScaler
 
-from src.data_prep import CATEGORICAL, NUMERIC
+from src.config import CATEGORICAL, NUMERIC
 
 
 def build_preprocessor(numeric=NUMERIC, categorical=CATEGORICAL) -> ColumnTransformer:
@@ -35,7 +43,8 @@ def build_preprocessor(numeric=NUMERIC, categorical=CATEGORICAL) -> ColumnTransf
 
 
 def make_pipeline(model, numeric=NUMERIC, categorical=CATEGORICAL) -> Pipeline:
-    """Preprocessing followed by the model, as one pipeline."""
+    """Return one pipeline (not yet fitted): the preprocessing steps followed
+    by the model."""
     return Pipeline([
         ("preprocess", build_preprocessor(numeric, categorical)),
         ("model", model),

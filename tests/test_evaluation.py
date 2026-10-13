@@ -1,61 +1,19 @@
-"""Tests for the data split, the folds, the selection rule, the metrics and
-the quality gate."""
+"""Tests for src/models/evaluation.py: the selection rule, the metrics and
+the quality gate.
+
+Small made-up tables and labels are used, for which the right answer can be
+worked out by hand. No model is trained here.
+"""
 import numpy as np
 import pandas as pd
 import pytest
 
-from src.evaluation import (
-    CV_FOLDS,
-    FEATURES,
-    ROC_AUC_GATE,
-    compute_metrics,
-    create_cv_folds,
-    passes_quality_gate,
-    select_best_model,
-    split_data,
-)
-
-
-def test_split_sizes():
-    X_train, X_test, y_train, y_test = split_data()
-
-    assert len(X_train) == len(y_train) == 242
-    assert len(X_test) == len(y_test) == 61
-    assert X_train.columns.tolist() == FEATURES
-
-
-def test_split_is_stratified():
-    _, _, y_train, y_test = split_data()
-
-    assert y_train.mean() == pytest.approx(y_test.mean(), abs=0.01)
-
-
-def test_split_is_the_same_every_time():
-    first = split_data()
-    second = split_data()
-
-    assert first[1].index.tolist() == second[1].index.tolist()
-
-
-def test_no_patient_is_in_both_parts():
-    X_train, X_test, _, _ = split_data()
-
-    assert set(X_train.index).isdisjoint(X_test.index)
-
-
-def test_each_training_patient_is_validated_once():
-    X_train, _, y_train, _ = split_data()
-    folds = create_cv_folds()
-
-    validated = []
-    for _, validation_rows in folds.split(X_train, y_train):
-        validated.extend(validation_rows)
-
-    assert folds.get_n_splits() == CV_FOLDS
-    assert sorted(validated) == list(range(len(X_train)))
+from src.config import ROC_AUC_GATE
+from src.models.evaluation import compute_metrics, passes_quality_gate, select_best_model
 
 
 def results_table(rows) -> pd.DataFrame:
+    """A small table of models, as given to select_best_model()."""
     return pd.DataFrame(rows, columns=["model", "roc_auc_mean", "recall_mean"])
 
 

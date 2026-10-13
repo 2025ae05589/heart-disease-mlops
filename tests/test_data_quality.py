@@ -1,10 +1,14 @@
-"""Data quality checks on the raw Cleveland file. They repeat the checks of
-the EDA notebook (section 5), so that the pipeline fails if the data changes."""
+"""Data quality checks on the raw Cleveland file.
+
+The number of patients and columns, duplicate rows, valid codes, limits of
+the numerical values and the places of the missing values are checked. They
+repeat the checks of the EDA notebook (section 5), so that the pipeline
+fails if the data changes.
+"""
 import pandas as pd
 import pytest
 
-from src.data_prep import RAW_PATH
-from src.evaluation import ROOT
+from src.config import RAW_PATH, ROOT
 
 # values allowed in the UCI data dictionary
 VALID_CODES = {
@@ -31,6 +35,7 @@ LIMITS = {
 
 @pytest.fixture(scope="module")
 def raw():
+    """The raw Cleveland file, read once for all the tests."""
     return pd.read_csv(ROOT / RAW_PATH)
 
 

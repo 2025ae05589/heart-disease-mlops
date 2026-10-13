@@ -13,5 +13,5 @@ ci-output/
 mlruns/
 mlflow.db
 
-# champion model exported by src/train.py
-models/
+# champion model exported by the pipeline (the code folder src/models is kept)
+/models/

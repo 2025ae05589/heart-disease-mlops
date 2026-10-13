@@ -1,10 +1,15 @@
-"""Tests for the list of models and their grids."""
+"""Tests for src/models/definitions.py: the four models and their grids.
+
+It is checked that every setting named in a grid exists in the pipeline,
+that each grid has the expected number of combinations, and that the seed
+of each model is fixed.
+"""
 import pytest
 from sklearn.model_selection import ParameterGrid
 
-from src.evaluation import RANDOM_STATE
-from src.models import MODELS
-from src.preprocessing import make_pipeline
+from src.config import RANDOM_STATE
+from src.features.preprocessing import make_pipeline
+from src.models.definitions import MODELS
 
 COMBINATIONS = {
     "Logistic Regression": 4,

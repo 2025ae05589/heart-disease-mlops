@@ -8,6 +8,7 @@ PyYAML==6.0.3
 fastapi==0.142.2
 uvicorn==0.54.0
 pydantic==2.13.5
+prometheus-client==0.26.0
 matplotlib==3.11.2
 seaborn==0.13.2
 notebook==7.6.3

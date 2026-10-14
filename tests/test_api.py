@@ -1,5 +1,5 @@
 """Tests for the API in api/: the checks on a request, the replies of the
-four addresses and the loading of the exported model.
+four endpoints and the loading of the exported model.
 
 The API is called through FastAPI's test client, so no server is started.
 The model is replaced by a fake model that gives a probability fixed in the

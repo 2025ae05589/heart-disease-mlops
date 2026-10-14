@@ -277,6 +277,13 @@ jobs:
           cat ci-output/refused.json
           test "$status" = "422"
 
+      # the two requests above must be counted in the metrics
+      - name: Check the metrics
+        run: |
+          curl --silent --fail http://127.0.0.1:8000/metrics | tee ci-output/metrics.txt
+          grep -F 'api_requests_total{path="/predict",status="200"} 1.0' ci-output/metrics.txt
+          grep -F 'api_requests_total{path="/predict",status="422"} 1.0' ci-output/metrics.txt
+
       - name: Save the container log
         if: always()
         run: docker logs api > ci-output/container.log 2>&1 || true
@@ -396,6 +403,11 @@ jobs:
           jq --exit-status \
             '(.prediction == 0 or .prediction == 1) and .confidence >= 0.5 and .confidence <= 1' \
             ci-output/prediction.json
+
+      - name: Check the metrics
+        run: |
+          curl --silent --fail $API_URL/metrics | tee ci-output/metrics.txt
+          grep -F 'api_model_loaded 1.0' ci-output/metrics.txt
 
       - name: Upload the replies from the deployed API
         if: always()

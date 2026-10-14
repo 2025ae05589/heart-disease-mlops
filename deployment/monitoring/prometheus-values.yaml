@@ -38,6 +38,14 @@ configmapReload:
 # only the jobs "prometheus" (itself) and "kubernetes-pods" (annotated pods)
 # are kept; the others need permissions that are not given
 scrapeConfigs:
+  # annotated pods are looked for only in the namespace of the API, so that
+  # the system pods of GKE, which also carry the annotation, are not scraped
+  kubernetes-pods:
+    kubernetes_sd_configs:
+      - role: pod
+        namespaces:
+          names:
+            - default
   kubernetes-api-servers:
     enabled: false
   kubernetes-nodes:

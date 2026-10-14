@@ -434,9 +434,10 @@ jobs:
       - name: Check that Prometheus reads the API pods
         run: |
           pods=$(kubectl get deployment $RELEASE -o jsonpath='{.spec.replicas}')
+          query="sum(up{job=\"kubernetes-pods\",app=\"$RELEASE\"})"
           for attempt in $(seq 1 12); do
             found=$(kubectl exec deploy/prometheus-server -c prometheus-server -- \
-              wget -qO- 'http://localhost:9090/api/v1/query?query=sum(up{job="kubernetes-pods"})' \
+              wget -qO- "http://localhost:9090/api/v1/query?query=$query" \
               | jq -r '.data.result[0].value[1] // "0"')
             echo "API pods read by Prometheus: $found of $pods"
             if [ "$found" = "$pods" ]; then

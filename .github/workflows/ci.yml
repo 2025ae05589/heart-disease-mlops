@@ -3,7 +3,7 @@ name: CI
 # One pipeline with six jobs, each started only if the one before it has
 # passed: lint and unit tests, data preparation, training and evaluation,
 # registration and export of the model, the Docker image of the API, and the
-# deployment of that image on GKE.
+# deployment of that image on GKE together with Prometheus and Grafana.
 # Every job runs on a new machine, so the files a later job needs are uploaded
 # by one job and downloaded by the next.
 on:
@@ -331,6 +331,9 @@ jobs:
       REGISTRY: heart-disease
       CLUSTER: heart-disease-cluster
       RELEASE: heart-disease-api
+      # versions of the community charts of the monitoring
+      PROMETHEUS_CHART: 29.35.0
+      GRAFANA_CHART: 13.2.7
 
     steps:
       - name: Check out the code
@@ -408,6 +411,40 @@ jobs:
         run: |
           curl --silent --fail $API_URL/metrics | tee ci-output/metrics.txt
           grep -F 'api_model_loaded 1.0' ci-output/metrics.txt
+
+      # the permission of Prometheus to list pods is created once by hand
+      # (prometheus-access.yaml); nothing changes on the cluster if the
+      # settings are the same as in the previous run
+      - name: Install Prometheus and Grafana
+        run: |
+          helm repo add prometheus-community https://prometheus-community.github.io/helm-charts
+          helm repo add grafana-community https://grafana-community.github.io/helm-charts
+          helm upgrade --install prometheus prometheus-community/prometheus \
+            --version $PROMETHEUS_CHART \
+            -f deployment/monitoring/prometheus-values.yaml \
+            --wait --timeout 5m
+          helm upgrade --install grafana grafana-community/grafana \
+            --version $GRAFANA_CHART \
+            -f deployment/monitoring/grafana-values.yaml \
+            --set-file dashboards.default.heart-disease-api.json=deployment/monitoring/dashboards/heart-disease-api.json \
+            --wait --timeout 5m
+
+      # every API pod must be found and read by Prometheus; the first reading
+      # can take up to one scrape interval after Prometheus starts
+      - name: Check that Prometheus reads the API pods
+        run: |
+          pods=$(kubectl get deployment $RELEASE -o jsonpath='{.spec.replicas}')
+          for attempt in $(seq 1 12); do
+            found=$(kubectl exec deploy/prometheus-server -c prometheus-server -- \
+              wget -qO- 'http://localhost:9090/api/v1/query?query=sum(up{job="kubernetes-pods"})' \
+              | jq -r '.data.result[0].value[1] // "0"')
+            echo "API pods read by Prometheus: $found of $pods"
+            if [ "$found" = "$pods" ]; then
+              exit 0
+            fi
+            sleep 10
+          done
+          exit 1
 
       - name: Upload the replies from the deployed API
         if: always()

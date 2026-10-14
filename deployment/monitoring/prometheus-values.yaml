@@ -1,0 +1,66 @@
+# Settings for the community Prometheus chart (prometheus-community/prometheus;
+# the chart version is fixed in ci.yml). Only values that differ from the
+# chart's defaults are listed.
+#
+# Prometheus scrapes every pod that carries the annotation
+# prometheus.io/scrape: "true", such as the pods of the prediction API.
+
+# the chart creates the service account; the role and the binding that give
+# it the permission to list pods are in prometheus-access.yaml
+rbac:
+  create: false
+serviceAccounts:
+  server:
+    create: true
+    name: prometheus
+
+server:
+  global:
+    scrape_interval: 15s
+  retention: 7d
+  # no disk: the data is lost when the pod is replaced
+  persistentVolume:
+    enabled: false
+  resources:
+    requests:
+      cpu: 250m
+      memory: 512Mi
+    limits:
+      memory: 512Mi
+
+configmapReload:
+  prometheus:
+    resources:
+      requests:
+        cpu: 10m
+        memory: 32Mi
+
+# only the jobs "prometheus" (itself) and "kubernetes-pods" (annotated pods)
+# are kept; the others need permissions that are not given
+scrapeConfigs:
+  kubernetes-api-servers:
+    enabled: false
+  kubernetes-nodes:
+    enabled: false
+  kubernetes-nodes-cadvisor:
+    enabled: false
+  kubernetes-service-endpoints:
+    enabled: false
+  kubernetes-service-endpoints-slow:
+    enabled: false
+  prometheus-pushgateway:
+    enabled: false
+  kubernetes-services:
+    enabled: false
+  kubernetes-pods-slow:
+    enabled: false
+
+# parts of the chart that are not used
+alertmanager:
+  enabled: false
+kube-state-metrics:
+  enabled: false
+prometheus-node-exporter:
+  enabled: false
+prometheus-pushgateway:
+  enabled: false

@@ -1,0 +1,33 @@
+# Permission for Prometheus to list the pods of the cluster, so that it can
+# find the pods to scrape by their annotations.
+#
+# Applied once, by the cluster owner, before the first deployment:
+#   kubectl apply -f deployment/monitoring/prometheus-access.yaml
+#
+# The pipeline cannot create roles or bindings, so these two are created by
+# hand. The service account "prometheus" itself is created by the Prometheus
+# chart (prometheus-values.yaml).
+
+# allowed actions: read the list of pods
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: prometheus-read-pods
+rules:
+  - apiGroups: [""]
+    resources: ["pods"]
+    verbs: ["get", "list", "watch"]
+---
+# gives the permission above to the service account of Prometheus
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: prometheus-read-pods
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: prometheus-read-pods
+subjects:
+  - kind: ServiceAccount
+    name: prometheus
+    namespace: default

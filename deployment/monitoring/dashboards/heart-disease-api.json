@@ -1,0 +1,138 @@
+{
+  "uid": "heart-disease-api",
+  "title": "Heart Disease API",
+  "description": "Service and model metrics of the prediction API, from Prometheus",
+  "schemaVersion": 39,
+  "version": 1,
+  "editable": false,
+  "refresh": "30s",
+  "time": { "from": "now-1h", "to": "now" },
+  "panels": [
+    {
+      "type": "row",
+      "title": "Service",
+      "collapsed": false,
+      "gridPos": { "x": 0, "y": 0, "w": 24, "h": 1 },
+      "panels": []
+    },
+    {
+      "id": 1,
+      "type": "timeseries",
+      "title": "Requests per minute",
+      "description": "Requests to each endpoint, all statuses",
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "gridPos": { "x": 0, "y": 1, "w": 6, "h": 8 },
+      "fieldConfig": { "defaults": { "unit": "reqpm", "min": 0 }, "overrides": [] },
+      "targets": [
+        {
+          "refId": "A",
+          "expr": "sum by (path) (rate(api_requests_total{path!=\"other\"}[5m])) * 60",
+          "legendFormat": "{{path}}"
+        }
+      ]
+    },
+    {
+      "id": 2,
+      "type": "timeseries",
+      "title": "Refused and failed requests per minute",
+      "description": "Status 4xx (refused, such as 422 for invalid input) and 5xx (failed)",
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "gridPos": { "x": 6, "y": 1, "w": 6, "h": 8 },
+      "fieldConfig": { "defaults": { "unit": "reqpm", "min": 0 }, "overrides": [] },
+      "targets": [
+        {
+          "refId": "A",
+          "expr": "sum by (status) (rate(api_requests_total{path!=\"other\", status=~\"4..|5..\"}[5m])) * 60",
+          "legendFormat": "status {{status}}"
+        }
+      ]
+    },
+    {
+      "id": 3,
+      "type": "timeseries",
+      "title": "Response time of predictions",
+      "description": "Median and 95th percentile of the response time of /predict and /predict-batch",
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "gridPos": { "x": 12, "y": 1, "w": 6, "h": 8 },
+      "fieldConfig": { "defaults": { "unit": "ms", "min": 0 }, "overrides": [] },
+      "targets": [
+        {
+          "refId": "A",
+          "expr": "histogram_quantile(0.5, sum by (le) (rate(api_request_duration_seconds_bucket{path=~\"/predict.*\"}[5m]))) * 1000",
+          "legendFormat": "median"
+        },
+        {
+          "refId": "B",
+          "expr": "histogram_quantile(0.95, sum by (le) (rate(api_request_duration_seconds_bucket{path=~\"/predict.*\"}[5m]))) * 1000",
+          "legendFormat": "95th percentile"
+        }
+      ]
+    },
+    {
+      "id": 4,
+      "type": "stat",
+      "title": "Copies with the model loaded",
+      "description": "Number of API pods that report the model as loaded",
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "gridPos": { "x": 18, "y": 1, "w": 6, "h": 8 },
+      "fieldConfig": { "defaults": { "unit": "none", "decimals": 0 }, "overrides": [] },
+      "options": { "reduceOptions": { "calcs": ["lastNotNull"] }, "colorMode": "value" },
+      "targets": [
+        {
+          "refId": "A",
+          "expr": "sum(api_model_loaded)",
+          "legendFormat": "loaded"
+        }
+      ]
+    },
+    {
+      "type": "row",
+      "title": "Model",
+      "collapsed": false,
+      "gridPos": { "x": 0, "y": 9, "w": 24, "h": 1 },
+      "panels": []
+    },
+    {
+      "id": 5,
+      "type": "timeseries",
+      "title": "Predictions per minute, by class",
+      "description": "A change in the share of each class can show a change in the incoming patients",
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "gridPos": { "x": 0, "y": 10, "w": 12, "h": 8 },
+      "fieldConfig": {
+        "defaults": { "unit": "none", "min": 0, "custom": { "stacking": { "mode": "normal" } } },
+        "overrides": []
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "expr": "sum by (label) (rate(api_predictions_total[5m])) * 60",
+          "legendFormat": "{{label}}"
+        }
+      ]
+    },
+    {
+      "id": 6,
+      "type": "bargauge",
+      "title": "Confidence of predictions",
+      "description": "Number of predictions in each confidence range, since the pods started",
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "gridPos": { "x": 12, "y": 10, "w": 12, "h": 8 },
+      "fieldConfig": { "defaults": { "unit": "none", "min": 0, "decimals": 0 }, "overrides": [] },
+      "options": {
+        "orientation": "vertical",
+        "displayMode": "basic",
+        "reduceOptions": { "calcs": ["lastNotNull"] }
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "expr": "sum by (le) (api_prediction_confidence_bucket{le!=\"+Inf\"})",
+          "format": "heatmap",
+          "instant": true,
+          "legendFormat": "up to {{le}}"
+        }
+      ]
+    }
+  ]
+}

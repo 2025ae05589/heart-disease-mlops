@@ -15,6 +15,11 @@ spec:
     metadata:
       labels:
         app: {{ .Chart.Name }}
+      # Prometheus scrapes the pods that carry these annotations
+      annotations:
+        prometheus.io/scrape: "true"
+        prometheus.io/port: "{{ .Values.containerPort }}"
+        prometheus.io/path: /metrics
     spec:
       containers:
         - name: api

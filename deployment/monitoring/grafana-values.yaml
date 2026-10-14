@@ -1,0 +1,55 @@
+# Settings for the community Grafana chart (grafana-community/grafana; the
+# chart version is fixed in ci.yml). Only values that differ from the chart's
+# defaults are listed.
+#
+# Grafana reads from Prometheus and shows the dashboard in
+# dashboards/heart-disease-api.json, which ci.yml passes with --set-file.
+
+# Grafana does not use the Kubernetes API, so it needs no permissions
+rbac:
+  create: false
+serviceAccount:
+  create: false
+testFramework:
+  enabled: false
+
+resources:
+  requests:
+    cpu: 250m
+    memory: 512Mi
+  limits:
+    memory: 512Mi
+
+datasources:
+  datasources.yaml:
+    apiVersion: 1
+    datasources:
+      - name: Prometheus
+        uid: prometheus
+        type: prometheus
+        # service of the Prometheus chart, in the same namespace
+        url: http://prometheus-server
+        access: proxy
+        isDefault: true
+
+# dashboards are loaded from files and cannot be changed in Grafana
+dashboardProviders:
+  dashboardproviders.yaml:
+    apiVersion: 1
+    providers:
+      - name: default
+        orgId: 1
+        folder: ""
+        type: file
+        disableDeletion: true
+        editable: false
+        options:
+          path: /var/lib/grafana/dashboards/default
+
+grafana.ini:
+  # anyone who can reach Grafana may view the dashboard without logging in
+  auth.anonymous:
+    enabled: true
+    org_role: Viewer
+  analytics:
+    check_for_updates: false

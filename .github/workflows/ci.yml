@@ -9,6 +9,13 @@ name: CI
 on:
   push:
     branches: [main]
+    # pushes that change only documents, notebooks or report material do not
+    # affect the model, the image or the deployment
+    paths-ignore:
+      - "**.md"
+      - "notebooks/**"
+      - "report/**"
+      - "screenshots/**"
   workflow_dispatch:
 
 env:

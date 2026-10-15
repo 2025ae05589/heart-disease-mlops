@@ -1,10 +1,9 @@
 """Loading of the champion model and prediction for new patients.
 
-The model is read from the exported folder models/champion/, so the MLflow
-database is not needed. The details of the model (name, version, run ID and
-training time) are read from the files that MLflow keeps in that folder.
+The model and its details are read from models/champion/, the folder to which
+the pipeline exports the champion from the MLflow registry.
 
-This file knows nothing about web requests. It is used by api/main.py.
+This module contains functions which are called by api/main.py and notebooks/03_inference.ipynb.
 """
 from dataclasses import dataclass
 from pathlib import Path
@@ -23,12 +22,13 @@ LABELS = {0: "no disease", 1: "disease"}
 
 @dataclass
 class LoadedModel:
-    """The trained model together with its details."""
-    model: object
-    name: str
-    version: str
-    run_id: str
-    trained_at: str
+    """The loaded champion model and its registry metadata, returned by
+    load_model()."""
+    model: object       # trained scikit-learn pipeline
+    name: str           # registered model name
+    version: str        # registered model version
+    run_id: str         # MLflow run that trained the model
+    trained_at: str     # training time (UTC)
 
 
 def load_model(model_dir: Path = MODEL_DIR) -> LoadedModel:
@@ -47,22 +47,14 @@ def load_model(model_dir: Path = MODEL_DIR) -> LoadedModel:
         name=registry["model_name"],
         version=str(registry["model_version"]),
         run_id=details["run_id"],
-        # the fraction of a second is left out
+        # fractional seconds are omitted
         trained_at=str(details["utc_time_created"]).split(".")[0] + " UTC",
     )
 
 
 def predict(model, patients: list[dict]) -> list[dict]:
-    """Return one result for each patient: the prediction, its label, the
-    confidence and the features that were filled.
-
-    model: the trained pipeline.
-    patients: one dict per patient with the 13 features. A value of None is
-    a missing value, which the pipeline fills.
-
-    The confidence is the probability of the predicted class. A probability
-    of disease of 0.5 or above is predicted as disease.
-    """
+    """Return the prediction, label, confidence and imputed features for each
+    patient. None values are imputed by the pipeline; the threshold is 0.5."""
     # columns in the order used in training; None becomes a missing value
     data = pd.DataFrame(patients, columns=FEATURES).astype(float)
     probabilities = model.predict_proba(data)[:, 1]

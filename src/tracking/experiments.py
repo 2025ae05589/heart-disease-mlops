@@ -299,6 +299,8 @@ def load_selected_model():
     """Return the name, run ID and test-set metrics of the selected model.
     It is found by the tag selected_model among the latest runs. None if no
     model has been tested yet."""
+    # the client takes the MLflow address that is set at the time it is made
+    setup_mlflow()
     client = MlflowClient()
     for _, row in load_model_results().iterrows():
         run = client.get_run(row["run_id"])

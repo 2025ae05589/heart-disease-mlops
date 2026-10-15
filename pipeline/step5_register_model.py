@@ -12,7 +12,7 @@ import logging
 import sys
 
 from src.config import LOG_DATE_FORMAT, LOG_FORMAT, MODEL_NAME
-from src.models.evaluation import passes_quality_gate
+from src.models.evaluation import passes_champion_gate, passes_quality_gate
 from src.tracking.experiments import load_selected_model
 from src.tracking.registry import (
     champion_test_roc_auc,
@@ -45,12 +45,12 @@ def main():
 
     # gate 2: better than the champion, if there is one
     champion_roc_auc = champion_test_roc_auc()
-    if champion_roc_auc is None:
-        log.info("Gate 2 skipped: there is no champion yet")
-        promote_to_champion(number)
-        log.info("Version %s is the champion", number)
-    elif roc_auc > champion_roc_auc:
-        log.info("Gate 2 passed: %.3f is above the champion's %.3f", roc_auc, champion_roc_auc)
+    if passes_champion_gate(roc_auc, champion_roc_auc):
+        if champion_roc_auc is None:
+            log.info("Gate 2 skipped: there is no champion yet")
+        else:
+            log.info("Gate 2 passed: %.3f is above the champion's %.3f",
+                     roc_auc, champion_roc_auc)
         promote_to_champion(number)
         log.info("Version %s is the champion", number)
     else:

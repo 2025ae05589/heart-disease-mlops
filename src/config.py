@@ -19,8 +19,9 @@ from src.data.data_dictionary import (  # noqa: F401
     ZERO_OR_ABOVE,
 )
 
-# The project folder. Paths below are written from this folder, so the code
-# runs the same way from the project root and from the notebooks folder.
+# The project folder. The data paths below are relative to this folder; the
+# functions that read or write the files put ROOT in front of them, so the
+# code runs the same way from the project root and from the notebooks folder.
 ROOT = Path(__file__).resolve().parent.parent
 
 # ---------------------------------------------------------------- data source

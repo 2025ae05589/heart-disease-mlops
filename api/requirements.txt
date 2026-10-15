@@ -1,5 +1,7 @@
 # Packages of the API, for the Docker image. The packages of the model are
-# installed from the requirements.txt that MLflow keeps with the model.
+# installed from the requirements.txt that MLflow keeps with the model. That
+# file also brings mlflow and PyYAML, which the API uses to load the model, so
+# they are not listed here again, to avoid two different versions.
 fastapi==0.142.2
 uvicorn==0.54.0
 pydantic==2.13.5

@@ -1,5 +1,5 @@
 """Tests for src/models/evaluation.py: the selection rule, the metrics and
-the quality gate.
+the two gates.
 
 Small made-up tables and labels are used, for which the right answer can be
 worked out by hand. No model is trained here.
@@ -9,7 +9,12 @@ import pandas as pd
 import pytest
 
 from src.config import ROC_AUC_GATE
-from src.models.evaluation import compute_metrics, passes_quality_gate, select_best_model
+from src.models.evaluation import (
+    compute_metrics,
+    passes_champion_gate,
+    passes_quality_gate,
+    select_best_model,
+)
 
 
 def results_table(rows) -> pd.DataFrame:
@@ -62,3 +67,17 @@ def test_quality_gate():
     assert passes_quality_gate({"roc_auc": ROC_AUC_GATE})
     assert passes_quality_gate({"roc_auc": 0.95})
     assert not passes_quality_gate({"roc_auc": ROC_AUC_GATE - 0.001})
+
+
+def test_champion_gate_is_passed_when_there_is_no_champion():
+    assert passes_champion_gate(0.85, None)
+
+
+def test_champion_gate_needs_a_better_model():
+    assert passes_champion_gate(0.966, 0.965)
+    assert not passes_champion_gate(0.964, 0.965)
+
+
+def test_champion_gate_is_failed_by_an_equal_model():
+    # the same model trained again must not replace the champion
+    assert not passes_champion_gate(0.965, 0.965)

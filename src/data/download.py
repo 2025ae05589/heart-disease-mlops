@@ -15,20 +15,20 @@ from pathlib import Path
 
 import pandas as pd
 
-from src.config import BASE_URL, COLUMNS, HOSPITALS, RAW_DIR
+from src.config import BASE_URL, COLUMNS, HOSPITALS, RAW_DIR, ROOT
 
 
-def raw_path(hospital: str, raw_dir: Path = RAW_DIR) -> Path:
+def raw_path(hospital: str, raw_dir: Path = ROOT / RAW_DIR) -> Path:
     """Return the CSV path for one hospital, e.g. heart_cleveland_raw.csv."""
     return Path(raw_dir) / f"heart_{hospital}_raw.csv"
 
 
-def source_path(hospital: str, raw_dir: Path = RAW_DIR) -> Path:
+def source_path(hospital: str, raw_dir: Path = ROOT / RAW_DIR) -> Path:
     """Return the path of the original UCI file for one hospital."""
     return Path(raw_dir) / HOSPITALS[hospital][0]
 
 
-def download(hospital: str, raw_dir: Path = RAW_DIR) -> pd.DataFrame:
+def download(hospital: str, raw_dir: Path = ROOT / RAW_DIR) -> pd.DataFrame:
     """Download the file of one hospital, check it and save it in raw_dir.
 
     The file is saved as it is, and as a CSV with column names. Returns the

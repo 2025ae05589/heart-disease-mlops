@@ -17,7 +17,7 @@ from sklearn.linear_model import LogisticRegression
 
 from api import main
 from api.inference import LoadedModel, load_model, predict
-from api.schemas import EXAMPLE_PATIENT, Patient
+from api.schemas import EXAMPLE_PATIENT, MAX_BATCH_SIZE, Patient
 from src.config import FEATURES, RANDOM_STATE, ROOT
 from src.data.preparation import split_data
 from src.features.preprocessing import make_pipeline
@@ -210,6 +210,16 @@ def test_batch_that_is_not_a_list_of_patients_is_refused(client, body):
     reply = client.post("/predict-batch", json=body)
 
     assert reply.status_code == 422
+
+
+def test_batch_size_limit(client, fake_model):
+    fake_model.probabilities = [0.87] * MAX_BATCH_SIZE
+
+    at_limit = client.post("/predict-batch", json={"patients": [patient()] * MAX_BATCH_SIZE})
+    above = client.post("/predict-batch", json={"patients": [patient()] * (MAX_BATCH_SIZE + 1)})
+
+    assert at_limit.status_code == 200
+    assert above.status_code == 422
 
 
 def test_service_without_a_model(monkeypatch):

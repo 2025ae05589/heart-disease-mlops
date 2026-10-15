@@ -34,7 +34,7 @@ def main():
             sys.exit(1)
         log.info(
             "%s: %d rows, %d complete rows, saved to %s",
-            hospital, len(data), len(data.dropna()), raw_path(hospital).as_posix(),
+            hospital, len(data), len(data.dropna()), raw_path(hospital, RAW_DIR).as_posix(),
         )
     log.info("All %d files match the recorded hashes", len(HOSPITALS))
 

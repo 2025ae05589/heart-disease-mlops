@@ -18,6 +18,10 @@ on:
       - "screenshots/**"
   workflow_dispatch:
 
+# the jobs only read the repository, unless a job asks for more
+permissions:
+  contents: read
+
 env:
   IMAGE: heart-disease-api
 
@@ -324,6 +328,11 @@ jobs:
     needs: build
     if: github.ref == 'refs/heads/main' && vars.GCP_PROJECT_ID != ''
     runs-on: ubuntu-24.04
+    # One deployment at a time. A deployment that is waiting is replaced by a
+    # newer one, so an older image never replaces a newer one on the cluster.
+    concurrency:
+      group: deploy-gke
+      cancel-in-progress: false
     permissions:
       contents: read
       packages: read

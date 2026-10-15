@@ -94,12 +94,19 @@ def build_patient():
 Patient = build_patient()
 
 
+# largest number of patients in one batch request; a larger request is
+# refused, so that one request cannot keep the service busy for long
+MAX_BATCH_SIZE = 100
+
+
 class BatchRequest(BaseModel):
-    """A list of patients. Each row is checked on its own, so one wrong row
-    does not stop the others."""
+    """A list of 1 to MAX_BATCH_SIZE patients. Each row is checked on its own,
+    so one wrong row does not stop the others."""
     patients: list[Any] = Field(
         min_length=1,
-        description="one entry for each patient, with the same fields as in /predict",
+        max_length=MAX_BATCH_SIZE,
+        description=f"one entry for each patient (at most {MAX_BATCH_SIZE}), "
+                    "with the same fields as in /predict",
         json_schema_extra={"example": [EXAMPLE_PATIENT]},
     )
 

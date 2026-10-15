@@ -43,7 +43,8 @@ def clean(df: pd.DataFrame) -> pd.DataFrame:
     return df[NUMERIC + CATEGORICAL + [TARGET]]
 
 
-def prepare(raw_path: Path = RAW_PATH, clean_path: Path = CLEAN_PATH) -> pd.DataFrame:
+def prepare(raw_path: Path = ROOT / RAW_PATH,
+            clean_path: Path = ROOT / CLEAN_PATH) -> pd.DataFrame:
     """Read the raw CSV, clean it and save the result as the cleaned CSV.
     Returns the cleaned data."""
     cleaned = clean(pd.read_csv(raw_path))

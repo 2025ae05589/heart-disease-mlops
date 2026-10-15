@@ -1,8 +1,8 @@
 """Evaluation of a model.
 
 The five metrics, the rule that selects one model among those compared, the
-quality gate on the test set (gate 1), and the plots of the ROC curve and
-the confusion matrix.
+two gates (gate 1: lowest test ROC-AUC accepted; gate 2: better than the
+champion), and the plots of the ROC curve and the confusion matrix.
 
 Used by steps 4 and 5 of the pipeline, the MLflow logging and the notebook.
 """
@@ -56,6 +56,21 @@ def passes_quality_gate(test_metrics: dict) -> bool:
     """Return True if the ROC-AUC on the test set is at least ROC_AUC_GATE
     (gate 1)."""
     return test_metrics["roc_auc"] >= ROC_AUC_GATE
+
+
+def passes_champion_gate(roc_auc: float, champion_roc_auc) -> bool:
+    """Return True if a new model may replace the champion (gate 2).
+
+    roc_auc: test ROC-AUC of the new model.
+    champion_roc_auc: test ROC-AUC of the present champion, or None if there
+        is no champion yet, in which case the gate is passed.
+
+    The new model has to be strictly better, so a model that only equals the
+    champion, such as the same model trained again, does not replace it.
+    """
+    if champion_roc_auc is None:
+        return True
+    return roc_auc > champion_roc_auc
 
 
 def cross_val_probabilities(pipeline, X_train, y_train, folds):

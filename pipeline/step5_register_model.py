@@ -1,7 +1,7 @@
 """Step 5: register the selected model as the challenger, apply gate 2 and
 make it the champion if it passes.
 
-Gate 2: the test ROC-AUC has to be above that of the present champion. It is
+Gate 2: the test ROC-AUC has to be above that of the current champion. It is
 skipped if there is no champion yet. A failed gate 2 is a normal end of the
 step: the new version stays as challenger and the champion is not changed.
 

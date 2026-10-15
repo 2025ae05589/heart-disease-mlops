@@ -1,7 +1,7 @@
 """Functions for the MLflow model registry.
 
 A tested model is registered as a new version with the alias challenger. If
-it is better than the present champion, the alias champion is moved to it.
+it is better than the current champion, the alias champion is moved to it.
 The champion is always found by its alias, never by a version number.
 
 Used by step 5 (register) and step 6 (export) of the pipeline.

@@ -3,7 +3,7 @@ hashes.
 
 The files are saved in data/raw/. The step ends with an error if a file has
 changed or if the site cannot be reached. It is not part of run_all, as the
-data files are kept in the repository; it is run by hand and by the weekly
+data files are kept in the repository; it is run manually and by the weekly
 data check.
 
 Run from the project root:
@@ -25,7 +25,7 @@ def main():
         try:
             data = download(hospital, ROOT / RAW_DIR)
         except ValueError as error:
-            # the file is not the recorded one
+            # the file does not match the recorded hash
             log.error("Source data has changed for %s: %s", hospital, error)
             sys.exit(1)
         except OSError as error:

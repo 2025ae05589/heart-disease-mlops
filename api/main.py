@@ -98,7 +98,7 @@ async def monitor(request: Request, call_next):
 
 
 @app.exception_handler(RequestValidationError)
-async def refused(request: Request, error: RequestValidationError):
+async def rejected(request: Request, error: RequestValidationError):
     """Handler for a request that fails validation. Adds the invalid fields
     and the input as received to its log line, then returns FastAPI's
     standard 422 response."""
@@ -111,7 +111,7 @@ async def refused(request: Request, error: RequestValidationError):
 
 
 def get_loaded():
-    """Return the loaded model, or refuse the request with status 503 if no
+    """Return the loaded model, or reject the request with status 503 if no
     model is loaded."""
     if "loaded" not in state:
         raise HTTPException(status_code=503, detail="The model is not loaded")
@@ -177,8 +177,8 @@ def predict_one(patient: Patient, request: Request):
 
 @app.post("/predict-batch", response_model=BatchResponse, response_model_exclude_none=True)
 def predict_batch(batch: BatchRequest, request: Request):
-    """Predictions for a list of patients. A row with a wrong value gets its
-    errors in the reply, and the other rows are still predicted."""
+    """Predictions for a list of patients. A row with an invalid value gets
+    its errors in the response, and the other rows are still predicted."""
     loaded = get_loaded()
 
     # each row is checked by the same rules as in /predict

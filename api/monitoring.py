@@ -22,7 +22,7 @@ MAX_INPUT_LENGTH = 1000
 REQUESTS = Counter(
     "api_requests_total", "Requests, by endpoint and status", ["path", "status"]
 )
-REPLY_TIME = Histogram(
+RESPONSE_TIME = Histogram(
     "api_request_duration_seconds", "Response time of a request", ["path"]
 )
 MODEL_LOADED = Gauge("api_model_loaded", "1 if the model is loaded, else 0")
@@ -89,12 +89,12 @@ def record_request(method: str, path: str, status: int, seconds: float,
         POST /predict status=200 time_ms=4.1 request_id=7f3a9c21 prediction=1 ...
 
     details: items written after request_id, such as prediction=1 for a
-        prediction or invalid_fields=cp for a refused request.
+        prediction or invalid_fields=cp for a rejected request.
     row_lines: for /predict-batch only, one line per patient, written after
         the request line.
     """
     REQUESTS.labels(path=path, status=str(status)).inc()
-    REPLY_TIME.labels(path=path).observe(seconds)
+    RESPONSE_TIME.labels(path=path).observe(seconds)
 
     line = (f"{method} {path} status={status} time_ms={seconds * 1000:.1f} "
             f"request_id={request_id}")

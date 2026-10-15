@@ -1,6 +1,6 @@
 # Image of the prediction API with the champion model inside.
 #
-# The model folder models/champion/ is made by the training pipeline (step 6),
+# The model folder models/champion/ is created by the training pipeline (step 6),
 # so the pipeline has to be run before the image is built.
 #
 #   docker build -t heart-disease-api .
@@ -17,13 +17,13 @@ RUN pip install --no-cache-dir -r model-requirements.txt
 COPY api/requirements.txt api-requirements.txt
 RUN pip install --no-cache-dir -r api-requirements.txt
 
-# from src, only the data dictionary is taken
+# only the data dictionary is copied from src
 COPY src/__init__.py src/
 COPY src/data/__init__.py src/data/data_dictionary.py src/data/
 COPY api/ api/
 COPY models/champion/ models/champion/
 
-# the service does not run as the administrator (root)
+# the service runs as a non-root user
 RUN useradd --create-home appuser
 USER appuser
 

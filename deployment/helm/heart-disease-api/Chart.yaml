@@ -1,7 +1,7 @@
 # Helm chart of the prediction API.
 #
 #   helm upgrade --install heart-disease-api deployment/helm/heart-disease-api \
-#     --set image.tag=<commit number>
+#     --set image.tag=<commit SHA>
 #
 # The values that can be set are in values.yaml.
 

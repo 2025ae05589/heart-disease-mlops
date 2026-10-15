@@ -4,8 +4,8 @@
 # Applied once, by the cluster owner, before the first deployment:
 #   kubectl apply -f deployment/monitoring/prometheus-access.yaml
 #
-# The pipeline cannot create roles or bindings, so these two are created by
-# hand. The service account "prometheus" itself is created by the Prometheus
+# The pipeline cannot create roles or bindings, so these two are created
+# manually. The service account "prometheus" itself is created by the Prometheus
 # chart (prometheus-values.yaml).
 
 # allowed actions: read the list of pods

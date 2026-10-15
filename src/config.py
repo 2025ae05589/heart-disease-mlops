@@ -2,14 +2,15 @@
 
 Data source and file paths, split and cross-validation settings, metrics,
 the selection rule, the quality gate, the grid of each model, MLflow names
-and the log format. Only values are kept here; every other file takes its
-settings from this file. The feature lists and their valid values come from
+and the log format. Only values are kept here; all other modules read
+their settings from this file. The feature lists and their valid values come from
 src/data/data_dictionary.py.
 """
 import os
 from pathlib import Path
 
-# not used in this file; imported so that other files can take them from here
+# not used in this file; re-exported so that other modules can import them
+# from here
 from src.data.data_dictionary import (  # noqa: F401
     ABOVE_ZERO,
     CATEGORICAL,
@@ -107,7 +108,7 @@ METRICS = {
 # decides the best combination of settings of a model
 TUNING_METRIC = "roc_auc"
 
-# models within this much of the best mean ROC-AUC are treated as close
+# models within this margin of the best mean ROC-AUC are treated as close
 ROC_AUC_GAP = 0.01
 
 # quality gate: lowest ROC-AUC on the test set accepted for the selected model

@@ -1,4 +1,5 @@
-# Runs the copies of the prediction API and keeps them running.
+# Deployment of the prediction API: runs the configured number of replicas
+# and replaces any replica that fails.
 
 apiVersion: apps/v1
 kind: Deployment
@@ -24,24 +25,24 @@ spec:
       containers:
         - name: api
           # the installation stops with this message if no tag is given
-          image: "{{ .Values.image.repository }}:{{ required "image.tag has to be given: --set image.tag=<commit number>" .Values.image.tag }}"
+          image: "{{ .Values.image.repository }}:{{ required "image.tag has to be given: --set image.tag=<commit SHA>" .Values.image.tag }}"
           ports:
             - containerPort: {{ .Values.containerPort }}
           resources:
             {{- toYaml .Values.resources | nindent 12 }}
-          # up to 60 seconds are allowed for a new copy to load the model
+          # up to 60 seconds are allowed for a new replica to load the model
           startupProbe:
             httpGet:
               path: /health
               port: {{ .Values.containerPort }}
             periodSeconds: 5
             failureThreshold: 12
-          # requests are sent to a copy only while it reports ready
+          # requests are routed to a replica only while it reports ready
           readinessProbe:
             httpGet:
               path: /health
               port: {{ .Values.containerPort }}
-          # a copy that stops answering is restarted
+          # a replica that stops responding is restarted
           livenessProbe:
             httpGet:
               path: /health

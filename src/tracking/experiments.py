@@ -38,7 +38,7 @@ from src.models.evaluation import (
     plot_roc_curve,
 )
 
-# skops, the format MLflow saves in, refuses types it does not know.
+# skops, the format MLflow saves in, rejects types it does not know.
 TRUSTED_TYPES = [
     "numpy.dtype",                    # preprocessing steps
     "sklearn.tree._tree.Tree",        # Random Forest, Gradient Boosting
@@ -178,7 +178,7 @@ def log_model_summary(model_name, pipeline, metrics_table, best_index,
 
     for column in metrics_table.columns:
         if not column.endswith("_mean") and not column.endswith("_std"):
-            # read from the column, so that a whole number stays whole
+            # read from the column, so that integer values remain integers
             mlflow.log_param(f"best_{column}", metrics_table.at[best_index, column])
 
     log_metrics(best_row)
@@ -234,7 +234,7 @@ def load_model_results() -> pd.DataFrame:
 
     rows = {}
     for run in runs:
-        # runs of side experiments are not models to compare
+        # runs of additional experiments are excluded from the comparison
         if "experiment" in run.data.tags:
             continue
 
@@ -299,7 +299,7 @@ def load_selected_model():
     """Return the name, run ID and test-set metrics of the selected model.
     It is found by the tag selected_model among the latest runs. None if no
     model has been tested yet."""
-    # the client takes the MLflow address that is set at the time it is made
+    # MlflowClient reads the tracking URI when it is created
     setup_mlflow()
     client = MlflowClient()
     for _, row in load_model_results().iterrows():

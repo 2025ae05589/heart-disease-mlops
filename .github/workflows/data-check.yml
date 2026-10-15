@@ -7,15 +7,15 @@ name: Data check
 # no model is trained by this workflow. There are three cases:
 #
 # 1. No change: the run passes.
-# 2. A file has changed: the check stops with an error, so that the run
-#    shows red on GitHub and the change is noticed. The new data is reviewed
+# 2. A file has changed: the check stops with an error, so that the workflow
+#    run fails and the change is noticed. The new data is reviewed
 #    by a person. If it is accepted, the recorded hash is updated, steps 1
 #    and 2 are run again and the data files are committed. That push starts
 #    the CI pipeline (ci.yml), which trains the models again.
 # 3. The site cannot be reached: the check could not be done and the run
-#    fails. The data is not in question; the check is run again later.
+#    fails. This does not indicate a data change; the check is repeated later.
 #
-# The error line in the log shows which of the two it is.
+# The error message in the log identifies which of the two cases occurred.
 on:
   schedule:
     - cron: "30 3 * * 1"  # 03:30 UTC, 9:00 AM in India

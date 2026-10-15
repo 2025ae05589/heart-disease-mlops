@@ -62,7 +62,7 @@ def passes_champion_gate(roc_auc: float, champion_roc_auc) -> bool:
     """Return True if a new model may replace the champion (gate 2).
 
     roc_auc: test ROC-AUC of the new model.
-    champion_roc_auc: test ROC-AUC of the present champion, or None if there
+    champion_roc_auc: test ROC-AUC of the current champion, or None if there
         is no champion yet, in which case the gate is passed.
 
     The new model has to be strictly better, so a model that only equals the

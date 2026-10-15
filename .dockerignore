@@ -1,5 +1,5 @@
-# Folders and files that Docker does not need to read while building the
-# image. The image takes only api/, the data dictionary and models/champion/.
+# Files and folders excluded from the Docker build context. The image
+# includes only api/, the data dictionary and models/champion/.
 .git
 .github
 .venv

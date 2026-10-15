@@ -56,8 +56,8 @@ def prepare(raw_path: Path = ROOT / RAW_PATH,
 def split_data():
     """Read the cleaned file and return X_train, X_test, y_train, y_test.
 
-    The split is 80/20, stratified on the target, with a fixed seed. So it
-    gives the same patients on every call.
+    The split is 80/20, stratified on the target, with a fixed seed, so
+    every call returns the same patients.
     """
     data = pd.read_csv(ROOT / CLEAN_PATH)
 

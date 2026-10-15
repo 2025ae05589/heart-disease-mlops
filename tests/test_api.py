@@ -45,7 +45,7 @@ def patient(**changes):
 @pytest.fixture
 def stub_model():
     return StubModel()
-    
+
 
 @pytest.fixture
 def client(monkeypatch, stub_model):

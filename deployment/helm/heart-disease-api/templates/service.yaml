@@ -1,5 +1,5 @@
-# One address for the API, with the requests shared among the copies that
-# report ready.
+# Service of the prediction API: a single endpoint that distributes requests
+# across the replicas that report ready.
 
 apiVersion: v1
 kind: Service
@@ -12,6 +12,6 @@ spec:
   selector:
     app: {{ .Chart.Name }}
   ports:
-    # the port of the address outside, and the port of the container inside
+    # external port of the service, and the target port of the container
     - port: {{ .Values.service.port }}
       targetPort: {{ .Values.containerPort }}

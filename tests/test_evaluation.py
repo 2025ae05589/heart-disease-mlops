@@ -1,8 +1,8 @@
 """Tests for src/models/evaluation.py: the selection rule, the metrics and
 the two gates.
 
-Small made-up tables and labels are used, for which the right answer can be
-worked out by hand. No model is trained here.
+Small synthetic tables and labels are used, for which the expected results
+can be calculated manually. No model is trained in these tests.
 """
 import numpy as np
 import pandas as pd
@@ -48,7 +48,8 @@ def test_metrics_on_a_worked_example():
 
     metrics = compute_metrics(y_true, probability)
 
-    # at the 0.5 cut-off: 2 found, 1 missed, 1 false alarm, 2 correctly cleared
+    # at the 0.5 threshold: 2 true positives, 1 false negative,
+    # 1 false positive and 2 true negatives
     assert metrics["accuracy"] == pytest.approx(4 / 6)
     assert metrics["precision"] == pytest.approx(2 / 3)
     assert metrics["recall"] == pytest.approx(2 / 3)
@@ -69,15 +70,10 @@ def test_quality_gate():
     assert not passes_quality_gate({"roc_auc": ROC_AUC_GATE - 0.001})
 
 
-def test_champion_gate_is_passed_when_there_is_no_champion():
+def test_champion_gate():
+    # skipped when there is no champion yet
     assert passes_champion_gate(0.85, None)
-
-
-def test_champion_gate_needs_a_better_model():
     assert passes_champion_gate(0.966, 0.965)
     assert not passes_champion_gate(0.964, 0.965)
-
-
-def test_champion_gate_is_failed_by_an_equal_model():
     # the same model trained again must not replace the champion
     assert not passes_champion_gate(0.965, 0.965)

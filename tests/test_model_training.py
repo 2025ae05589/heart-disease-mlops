@@ -36,7 +36,7 @@ def trained(pipeline, training_data):
     return clone(pipeline).fit(*training_data)
 
 
-def test_probabilities_are_valid(trained, training_data):
+def test_probabilities_and_predictions_are_valid(trained, training_data):
     X_train, _ = training_data
 
     probability = trained.predict_proba(X_train)
@@ -44,11 +44,7 @@ def test_probabilities_are_valid(trained, training_data):
     assert probability.shape == (len(X_train), 2)
     assert ((probability >= 0) & (probability <= 1)).all()
     assert np.allclose(probability.sum(axis=1), 1)
-
-
-def test_prediction_is_no_disease_or_disease(trained, training_data):
-    X_train, _ = training_data
-
+    # 0 = no disease, 1 = disease
     assert set(trained.predict(X_train)) == {0, 1}
 
 

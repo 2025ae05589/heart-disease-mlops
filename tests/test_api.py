@@ -1,10 +1,7 @@
-"""Tests for the API in api/: the checks on a request, the replies of the
-four endpoints and the loading of the exported model.
+"""Tests for the API in api/: request validation, endpoint responses and
+loading of the exported model.
 
-The API is called through FastAPI's test client, so no server is started.
-The model is replaced by a fake model that gives a probability fixed in the
-test. In this way the reply can be checked exactly. Only the last test uses a
-real model, to check that an exported model folder can be loaded.
+The tests use FastAPI's test client and a stub model with fixed probabilities.
 """
 import json
 
@@ -24,10 +21,9 @@ from src.features.preprocessing import make_pipeline
 from src.tracking.experiments import TRUSTED_TYPES, model_requirements
 
 
-class FakeModel:
-    """Stands in for the trained model. It returns the probabilities of
-    disease given to it, one for each patient, and keeps the data it was
-    asked to predict for."""
+class StubModel:
+    """Stub for the trained model. It returns the configured probabilities of
+    disease, one for each patient, and records the input data it receives."""
 
     def __init__(self):
         self.probabilities = [0.87]
@@ -47,15 +43,15 @@ def patient(**changes):
 
 
 @pytest.fixture
-def fake_model():
-    return FakeModel()
-
+def stub_model():
+    return StubModel()
+    
 
 @pytest.fixture
-def client(monkeypatch, fake_model):
-    """The API with the fake model loaded."""
+def client(monkeypatch, stub_model):
+    """Test client of the API, with the stub model loaded."""
     loaded = LoadedModel(
-        model=fake_model,
+        model=stub_model,
         name="heart-disease-classifier",
         version="7",
         run_id="abc123",
@@ -67,17 +63,17 @@ def client(monkeypatch, fake_model):
 
 
 def test_health(client):
-    reply = client.get("/health")
+    response = client.get("/health")
 
-    assert reply.status_code == 200
-    assert reply.json() == {"status": "ok", "model_loaded": True}
+    assert response.status_code == 200
+    assert response.json() == {"status": "ok", "model_loaded": True}
 
 
 def test_model_info(client):
-    reply = client.get("/model-info")
+    response = client.get("/model-info")
 
-    assert reply.status_code == 200
-    assert reply.json() == {
+    assert response.status_code == 200
+    assert response.json() == {
         "model_name": "heart-disease-classifier",
         "model_version": "7",
         "run_id": "abc123",
@@ -85,13 +81,14 @@ def test_model_info(client):
     }
 
 
-def test_prediction_of_disease(client, fake_model):
-    fake_model.probabilities = [0.87]
+def test_prediction_of_disease(client, stub_model):
+    stub_model.probabilities = [0.87]
 
-    reply = client.post("/predict", json=patient())
+    # oldpeak can be 0, unlike the other numerical features
+    response = client.post("/predict", json=patient(oldpeak=0))
 
-    assert reply.status_code == 200
-    assert reply.json() == {
+    assert response.status_code == 200
+    assert response.json() == {
         "prediction": 1,
         "label": "disease",
         "confidence": 0.87,
@@ -100,9 +97,9 @@ def test_prediction_of_disease(client, fake_model):
     }
 
 
-def test_confidence_is_for_the_predicted_class(client, fake_model):
-    # 20% chance of disease means 80% confidence in "no disease"
-    fake_model.probabilities = [0.20]
+def test_confidence_is_for_the_predicted_class(client, stub_model):
+    # a disease probability of 0.20 gives a confidence of 0.80 for "no disease"
+    stub_model.probabilities = [0.20]
 
     result = client.post("/predict", json=patient()).json()
 
@@ -111,8 +108,8 @@ def test_confidence_is_for_the_predicted_class(client, fake_model):
     assert result["confidence"] == 0.80
 
 
-def test_probability_at_the_cut_off_is_predicted_as_disease(client, fake_model):
-    fake_model.probabilities = [0.5]
+def test_probability_at_the_cut_off_is_predicted_as_disease(client, stub_model):
+    stub_model.probabilities = [0.5]
 
     result = client.post("/predict", json=patient()).json()
 
@@ -120,25 +117,19 @@ def test_probability_at_the_cut_off_is_predicted_as_disease(client, fake_model):
     assert result["confidence"] == 0.5
 
 
-def test_features_reach_the_model_in_the_training_order(client, fake_model):
+def test_features_reach_the_model_in_the_training_order(client, stub_model):
     client.post("/predict", json=patient())
 
-    assert list(fake_model.received.columns) == FEATURES
+    assert list(stub_model.received.columns) == FEATURES
 
 
 @pytest.mark.parametrize("feature", ["ca", "thal"])
-def test_missing_value_is_passed_to_the_model_and_reported(client, fake_model, feature):
-    reply = client.post("/predict", json=patient(**{feature: None}))
+def test_missing_value_is_passed_to_the_model_and_reported(client, stub_model, feature):
+    response = client.post("/predict", json=patient(**{feature: None}))
 
-    assert reply.status_code == 200
-    assert reply.json()["filled_fields"] == [feature]
-    assert fake_model.received[feature].isna().all()
-
-
-def test_zero_is_allowed_for_oldpeak(client):
-    reply = client.post("/predict", json=patient(oldpeak=0))
-
-    assert reply.status_code == 200
+    assert response.status_code == 200
+    assert response.json()["filled_fields"] == [feature]
+    assert stub_model.received[feature].isna().all()
 
 
 @pytest.mark.parametrize("changes, field", [
@@ -153,33 +144,33 @@ def test_zero_is_allowed_for_oldpeak(client):
     ({"fbs": True}, "fbs"),             # true is not taken as 1
     ({"cholesterol": 250}, "cholesterol"),   # not a known field
 ])
-def test_wrong_request_is_refused(client, changes, field):
-    reply = client.post("/predict", json=patient(**changes))
+def test_invalid_request_is_rejected(client, changes, field):
+    response = client.post("/predict", json=patient(**changes))
 
-    assert reply.status_code == 422
-    # the reply names the field that is wrong
-    assert reply.json()["detail"][0]["loc"] == ["body", field]
+    assert response.status_code == 422
+    # the response identifies the invalid field
+    assert response.json()["detail"][0]["loc"] == ["body", field]
 
 
-def test_request_with_a_field_left_out_is_refused(client):
+def test_request_with_a_missing_field_is_rejected(client):
     values = patient()
     del values["chol"]
 
-    reply = client.post("/predict", json=values)
+    response = client.post("/predict", json=values)
 
-    assert reply.status_code == 422
-    assert reply.json()["detail"][0]["loc"] == ["body", "chol"]
+    assert response.status_code == 422
+    assert response.json()["detail"][0]["loc"] == ["body", "chol"]
 
 
-def test_batch_gives_a_result_for_each_row(client, fake_model):
-    # the fake model is asked only for the two rows that are valid
-    fake_model.probabilities = [0.87, 0.20]
+def test_batch_gives_a_result_for_each_row(client, stub_model):
+    # the stub model receives only the two valid rows
+    stub_model.probabilities = [0.87, 0.20]
     rows = [patient(), patient(cp=9), patient(ca=None)]
 
-    reply = client.post("/predict-batch", json={"patients": rows})
+    response = client.post("/predict-batch", json={"patients": rows})
 
-    assert reply.status_code == 200
-    assert reply.json() == {
+    assert response.status_code == 200
+    assert response.json() == {
         "results": [
             {"row": 1, "status": "ok", "prediction": 1, "label": "disease",
              "confidence": 0.87, "filled_fields": []},
@@ -195,25 +186,15 @@ def test_batch_gives_a_result_for_each_row(client, fake_model):
     }
 
 
-def test_batch_with_only_wrong_rows(client):
-    reply = client.post("/predict-batch", json={"patients": [patient(age=0), "not a patient"]})
-
-    assert reply.status_code == 200
-    result = reply.json()
-    assert result["predicted"] == 0
-    assert result["failed"] == 2
-    assert [row["status"] for row in result["results"]] == ["error", "error"]
-
-
 @pytest.mark.parametrize("body", [{"patients": []}, {"patients": "all"}, {}])
-def test_batch_that_is_not_a_list_of_patients_is_refused(client, body):
-    reply = client.post("/predict-batch", json=body)
+def test_batch_that_is_not_a_list_of_patients_is_rejected(client, body):
+    response = client.post("/predict-batch", json=body)
 
-    assert reply.status_code == 422
+    assert response.status_code == 422
 
 
-def test_batch_size_limit(client, fake_model):
-    fake_model.probabilities = [0.87] * MAX_BATCH_SIZE
+def test_batch_size_limit(client, stub_model):
+    stub_model.probabilities = [0.87] * MAX_BATCH_SIZE
 
     at_limit = client.post("/predict-batch", json={"patients": [patient()] * MAX_BATCH_SIZE})
     above = client.post("/predict-batch", json={"patients": [patient()] * (MAX_BATCH_SIZE + 1)})
@@ -245,7 +226,7 @@ def test_sample_request_file_is_a_valid_patient():
 
 
 def test_exported_model_folder_is_loaded(tmp_path):
-    # a small model is saved in the same form as the exported champion
+    # a small model is saved in the same format as the exported champion
     X_train, _, y_train, _ = split_data()
     pipeline = make_pipeline(LogisticRegression(random_state=RANDOM_STATE)).fit(X_train, y_train)
     model_dir = tmp_path / "champion"

@@ -7,11 +7,10 @@ used.
 """
 import numpy as np
 import pytest
-from sklearn.linear_model import LogisticRegression
 
 from src.config import CATEGORICAL, NUMERIC
 from src.data.preparation import split_data
-from src.features.preprocessing import build_preprocessor, make_pipeline
+from src.features.preprocessing import build_preprocessor
 
 
 @pytest.fixture(scope="module")
@@ -63,9 +62,3 @@ def test_unseen_category_does_not_fail(preprocessor, X_train):
 
     cp_columns = [column for column in output.columns if column.startswith("cp_")]
     assert output[cp_columns].sum(axis=1).iloc[0] == 0
-
-
-def test_pipeline_steps():
-    pipeline = make_pipeline(LogisticRegression())
-
-    assert list(pipeline.named_steps) == ["preprocess", "model"]

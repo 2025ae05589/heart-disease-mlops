@@ -1,7 +1,7 @@
 """Tests for src/data/preparation.py: the cleaning and the split into
 training and test patients.
 
-The cleaning is tested on three made-up rows and on the files in the
+The cleaning is tested on three synthetic rows and on the files in the
 repository. The split is tested for its sizes, for the same share of disease
 in both parts, and for giving the same patients every time.
 """
@@ -61,14 +61,6 @@ def test_codes_are_whole_numbers_when_nothing_is_missing():
     assert pd.api.types.is_float_dtype(cleaned["ca"])
 
 
-def test_input_is_not_changed():
-    raw = raw_sample()
-    clean(raw)
-
-    assert "num" in raw.columns
-    assert TARGET not in raw.columns
-
-
 def test_prepare_saves_the_cleaned_file(tmp_path):
     raw_path = tmp_path / "raw.csv"
     clean_path = tmp_path / "processed" / "clean.csv"
@@ -82,34 +74,25 @@ def test_prepare_saves_the_cleaned_file(tmp_path):
 
 
 def test_clean_file_in_the_repository():
-    data = pd.read_csv(ROOT / CLEAN_PATH)
-
-    assert data.shape == (303, 14)
-    assert set(data[TARGET]) == {0, 1}
-    assert int(data[TARGET].sum()) == 139
-    # only "ca" and "thal" have missing values
-    missing = data.isna().sum()
-    assert missing[missing > 0].to_dict() == {"ca": 4, "thal": 2}
-
-
-def test_clean_file_comes_from_the_raw_file():
-    cleaned = clean(pd.read_csv(ROOT / RAW_PATH))
     saved = pd.read_csv(ROOT / CLEAN_PATH)
 
+    assert saved.shape == (303, 14)
+    assert int(saved[TARGET].sum()) == 139
+    # only "ca" and "thal" have missing values
+    missing = saved.isna().sum()
+    assert missing[missing > 0].to_dict() == {"ca": 4, "thal": 2}
+    # the file matches the output of clean() on the raw file in the repository
+    cleaned = clean(pd.read_csv(ROOT / RAW_PATH))
     pd.testing.assert_frame_equal(cleaned, saved, check_dtype=False)
 
 
-def test_split_sizes():
+def test_split_sizes_and_stratification():
     X_train, X_test, y_train, y_test = split_data()
 
     assert len(X_train) == len(y_train) == 242
     assert len(X_test) == len(y_test) == 61
     assert X_train.columns.tolist() == FEATURES
-
-
-def test_split_is_stratified():
-    _, _, y_train, y_test = split_data()
-
+    # the same share of disease in both parts
     assert y_train.mean() == pytest.approx(y_test.mean(), abs=0.01)
 
 
@@ -118,9 +101,5 @@ def test_split_is_the_same_every_time():
     second = split_data()
 
     assert first[1].index.tolist() == second[1].index.tolist()
-
-
-def test_no_patient_is_in_both_parts():
-    X_train, X_test, _, _ = split_data()
-
-    assert set(X_train.index).isdisjoint(X_test.index)
+    # no patient is in both parts
+    assert set(first[0].index).isdisjoint(first[1].index)

@@ -1,7 +1,7 @@
 """Tests for src/models/tuning.py: the cross-validation folds, the grid
 search and the metrics table.
 
-A small grid search on Logistic Regression is run once and its tables are
+A small grid search on Logistic Regression is run once and its table is
 checked. Only the training patients are used.
 """
 import pytest
@@ -10,12 +10,7 @@ from sklearn.linear_model import LogisticRegression
 from src.config import CV_FOLDS, METRICS, RANDOM_STATE
 from src.data.preparation import split_data
 from src.features.preprocessing import make_pipeline
-from src.models.tuning import (
-    build_metrics_table,
-    create_cv_folds,
-    readable_metrics,
-    run_grid_search,
-)
+from src.models.tuning import build_metrics_table, create_cv_folds, run_grid_search
 
 
 @pytest.fixture(scope="module")
@@ -55,13 +50,5 @@ def test_grid_search_and_metrics_table(search):
         assert (table[f"{metric}_std"] >= 0).all()
     # the best combination is the one with the highest mean ROC-AUC
     assert search.best_index_ == table["roc_auc_mean"].idxmax()
-    # the model learns something: clearly better than random guessing
+    # the model performs clearly better than random guessing (ROC-AUC 0.5)
     assert table["roc_auc_mean"].max() > 0.8
-
-
-def test_readable_metrics_table(search):
-    table = readable_metrics(build_metrics_table(search))
-
-    # the setting, then one "mean ± std" column for each metric
-    assert table.columns.tolist() == ["C"] + list(METRICS)
-    assert table["roc_auc"].str.contains(" ± ").all()

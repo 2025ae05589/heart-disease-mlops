@@ -4,8 +4,8 @@ name: CI
 # passed: lint and unit tests, data preparation, training and evaluation,
 # registration and export of the model, the Docker image of the API, and the
 # deployment of that image on GKE together with Prometheus and Grafana.
-# Every job runs on a new machine, so the files a later job needs are uploaded
-# by one job and downloaded by the next.
+# Each job runs on a fresh runner, so the files needed by a later job are
+# uploaded as artifacts by one job and downloaded by the next.
 on:
   push:
     branches: [main]
@@ -18,7 +18,8 @@ on:
       - "screenshots/**"
   workflow_dispatch:
 
-# the jobs only read the repository, unless a job asks for more
+# read-only access to the repository by default; a job that needs more
+# permissions requests them explicitly
 permissions:
   contents: read
 
@@ -173,14 +174,14 @@ jobs:
       - name: Install packages
         run: pip install -r requirements.txt
 
-      # the hash of this file is written on the registered model version
+      # the hash of this file is stored as a tag on the registered model version
       - name: Get the clean data
         uses: actions/download-artifact@v8
         with:
           name: clean-data
           path: data/processed/
 
-      # the MLflow store left by the train-evaluate job of this run
+      # the MLflow store produced by the train-evaluate job of this run
       - name: Get the trained models
         uses: actions/download-artifact@v8
         with:
@@ -253,7 +254,7 @@ jobs:
           mkdir -p ci-output
           docker run -d --name api -p 8000:8000 $IMAGE:${{ github.sha }}
 
-      # /health answers with an error until the model is loaded
+      # /health returns an error status until the model is loaded
       - name: Wait until the model is loaded
         run: |
           for attempt in $(seq 1 30); do
@@ -268,7 +269,7 @@ jobs:
       - name: Show the model being served
         run: curl --silent --fail http://127.0.0.1:8000/model-info | tee ci-output/model-info.json
 
-      # the reply must have a prediction of 0 or 1 and a confidence of 0.5 to 1
+      # the response must have a prediction of 0 or 1 and a confidence of 0.5 to 1
       - name: Send the sample request
         run: |
           curl --silent --fail -X POST http://127.0.0.1:8000/predict \
@@ -278,14 +279,14 @@ jobs:
             '(.prediction == 0 or .prediction == 1) and .confidence >= 0.5 and .confidence <= 1' \
             ci-output/prediction.json
 
-      # a code that is not valid must be refused with status 422
-      - name: Send a wrong request
+      # a code that is not valid must be rejected with status 422
+      - name: Send an invalid request
         run: |
           status=$(jq '.cp = 9' api/sample_request.json | curl --silent \
-            --output ci-output/refused.json --write-out "%{http_code}" \
+            --output ci-output/rejected.json --write-out "%{http_code}" \
             -X POST http://127.0.0.1:8000/predict \
             -H "Content-Type: application/json" -d @-)
-          cat ci-output/refused.json
+          cat ci-output/rejected.json
           test "$status" = "422"
 
       # the two requests above must be counted in the metrics
@@ -299,14 +300,15 @@ jobs:
         if: always()
         run: docker logs api > ci-output/container.log 2>&1 || true
 
-      - name: Upload the replies and the container log
+      - name: Upload the responses and the container log
         if: always()
         uses: actions/upload-artifact@v7
         with:
           name: image-check
           path: ci-output/
 
-      # reached only if every check above has passed; the tag is the commit number
+      # reached only if every check above has passed; the image is tagged with
+      # the commit SHA
       - name: Upload the image to the GitHub registry
         if: github.ref == 'refs/heads/main'
         run: |
@@ -336,7 +338,7 @@ jobs:
     permissions:
       contents: read
       packages: read
-      # to ask GitHub for the token that Google Cloud accepts as the login
+      # to request the OIDC token used to authenticate with Google Cloud
       id-token: write
     defaults:
       run:
@@ -355,7 +357,8 @@ jobs:
       - name: Check out the code
         uses: actions/checkout@v6
 
-      # no key is stored; Google Cloud accepts the token of this repository
+      # keyless authentication through Workload Identity Federation; no service
+      # account key is stored
       - name: Log in to Google Cloud
         id: google
         uses: google-github-actions/auth@v3
@@ -388,7 +391,8 @@ jobs:
           cluster_name: ${{ env.CLUSTER }}
           location: ${{ env.REGION }}
 
-      # waits until the new copies are ready; the old ones serve till then
+      # rolling update: waits until the new pods are ready, while the old pods
+      # continue to serve requests
       - name: Install the Helm chart
         run: |
           helm version --short
@@ -413,7 +417,7 @@ jobs:
       - name: Show the model being served
         run: curl --silent --fail $API_URL/model-info | tee ci-output/model-info.json
 
-      # the reply must have a prediction of 0 or 1 and a confidence of 0.5 to 1
+      # the response must have a prediction of 0 or 1 and a confidence of 0.5 to 1
       - name: Send the sample request
         run: |
           curl --silent --fail -X POST $API_URL/predict \
@@ -428,7 +432,7 @@ jobs:
           curl --silent --fail $API_URL/metrics | tee ci-output/metrics.txt
           grep -F 'api_model_loaded 1.0' ci-output/metrics.txt
 
-      # the permission of Prometheus to list pods is created once by hand
+      # the permission of Prometheus to list pods is created once manually
       # (prometheus-access.yaml); nothing changes on the cluster if the
       # settings are the same as in the previous run
       - name: Install Prometheus and Grafana
@@ -445,8 +449,8 @@ jobs:
             --set-file dashboards.default.heart-disease-api.json=deployment/monitoring/dashboards/heart-disease-api.json \
             --wait --timeout 5m
 
-      # every API pod must be found and read by Prometheus; the first reading
-      # can take up to one scrape interval after Prometheus starts
+      # Prometheus must discover and scrape every API pod; the first scrape can
+      # take up to one scrape interval after Prometheus starts
       - name: Check that Prometheus reads the API pods
         run: |
           pods=$(kubectl get deployment $RELEASE -o jsonpath='{.spec.replicas}')
@@ -463,7 +467,7 @@ jobs:
           done
           exit 1
 
-      - name: Upload the replies from the deployed API
+      - name: Upload the responses from the deployed API
         if: always()
         uses: actions/upload-artifact@v7
         with:

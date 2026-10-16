@@ -9,6 +9,7 @@ Prometheus call them every few seconds.
 """
 import json
 import logging
+import sys
 import time
 import uuid
 
@@ -43,19 +44,28 @@ MISSING_FIELDS = Counter(
 log = logging.getLogger("api")
 
 
+class JsonFormatter(logging.Formatter):
+    """Format each log record as one JSON line, with the level in the
+    "severity" field read by Cloud Logging."""
+
+    def format(self, record):
+        return json.dumps({
+            "time": time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime(record.created)),
+            "severity": record.levelname,
+            "message": record.getMessage(),
+        })
+
+
 def setup_logging():
-    """Configure the "api" logger to write to the console, with the time in
-    UTC."""
+    """Configure the "api" logger and uvicorn's logger to write JSON lines
+    to stdout."""
     if log.handlers:
         return
-    handler = logging.StreamHandler()
-    formatter = logging.Formatter(
-        "%(asctime)s %(levelname)s %(message)s", datefmt="%Y-%m-%d %H:%M:%S UTC"
-    )
-    formatter.converter = time.gmtime
-    handler.setFormatter(formatter)
+    handler = logging.StreamHandler(sys.stdout)
+    handler.setFormatter(JsonFormatter())
     log.addHandler(handler)
     log.setLevel(logging.INFO)
+    logging.getLogger("uvicorn").handlers = [handler]
 
 
 def new_request_id() -> str:

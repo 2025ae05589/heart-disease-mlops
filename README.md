@@ -6,6 +6,10 @@ trained and deployed through an automated pipeline: it is tracked in MLflow,
 packaged as a Docker image, served as an API on Kubernetes, and monitored
 with Prometheus and Grafana.
 
+## Architecture
+
+![Architecture of the project](report/figures/architecture.png)
+
 ## Project structure
 
 | Folder or file | Contents |
@@ -20,7 +24,7 @@ with Prometheus and Grafana.
 | `deployment/monitoring/` | Settings of Prometheus and Grafana, and the dashboard |
 | `tests/` | Unit tests |
 | `.github/workflows/` | CI/CD pipeline and the weekly data check |
-| `report/figures/` | Plots saved by notebooks 01 and 02 |
+| `report/figures/` | Plots saved by notebooks 01 and 02, and the architecture diagram |
 | `screenshots/` | Screenshots of the runs |
 
 ## Setup

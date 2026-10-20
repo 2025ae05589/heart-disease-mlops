@@ -24,7 +24,7 @@ with Prometheus and Grafana.
 | `deployment/monitoring/` | Settings of Prometheus and Grafana, and the dashboard |
 | `tests/` | Unit tests |
 | `.github/workflows/` | CI/CD pipeline and the weekly data check |
-| `report/figures/` | Plots saved by notebooks 01 and 02, and the architecture diagram |
+| `report/` | `figures/` (plots of notebooks 01 and 02, and the architecture diagram), `project_report/` (the report, docx and pdf), `video/` (demo video) |
 | `screenshots/` | Screenshots of the runs |
 
 ## Setup
@@ -79,6 +79,22 @@ kubectl port-forward svc/heart-disease-api 8000:80
 ```bash
 mlflow ui --backend-store-uri sqlite:///mlflow.db --port 5000
 ```
+
+## Run the published image
+
+The image built by the pipeline is public on GitHub Container Registry, so
+it can be run without cloning the repository, training or a login. It serves
+the same model as GKE (run `a4872b0f`).
+
+```bash
+IMG=ghcr.io/2025ae05589/heart-disease-api:e86d176d6151e2a722380f9b6a991cea3a32bed5
+docker run --rm -p 8000:8000 $IMG
+curl http://127.0.0.1:8000/model-info
+```
+
+On the lab machine, Docker is used through Minikube: run
+`eval $(minikube docker-env)` first, and use `$(minikube ip)` in place of
+`127.0.0.1`.
 
 ## Prediction API
 
